@@ -1,0 +1,12 @@
+#pgc-wrap-main {
+    width: 960px;
+}
+#pgc-region-sidebar {
+    float: left;
+    width: 220px;
+    padding-right: 30px;
+}
+#pgc-region-main {
+    float: left;
+    width: 710px;
+}

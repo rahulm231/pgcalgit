@@ -1,0 +1,22 @@
+<?php
+
+function pgc_giftcalcs_schema() {
+  $schema['gc_diagrams'] = array(
+    'description' => 'Stored GiftCalcs Diagrams.',
+    'fields' => array(
+      'uid'       => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'calc_id'   => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'singular'  => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'plural'    => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'id'        => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE)
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'calc_id' => array('calc_id'),
+    ),
+    'unique keys' => array(
+      'uid' => array('uid'),
+    ),
+  );
+  return $schema;
+}

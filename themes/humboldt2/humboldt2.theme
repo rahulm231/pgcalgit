@@ -1,0 +1,7 @@
+<?php
+
+
+
+function humboldt2_preprocess_page($variable) {
+//die('fff');
+}

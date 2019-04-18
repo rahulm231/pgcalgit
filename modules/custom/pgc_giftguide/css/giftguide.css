@@ -1,0 +1,119 @@
+#giftGuide{box-sizing: border-box;}
+
+#giftGuide {
+  display: block;
+  padding: 0 10px 5px;
+  margin: 0 auto 30px 0;
+}
+
+#giftGuide #answerForm {
+  padding: 2px;
+}
+
+#giftGuide .error {
+    color: #f00;
+    display: block;
+    font-size: 12px;
+    margin: 20px 0 10px 0;
+    padding-left: 0;
+}
+
+#giftGuide .note {
+  display: inline-block;
+  font-size: .8em;
+  margin: 5px 0 0 20px;
+  font-style: italic;
+}
+
+#giftGuide .choices {
+  margin-left: 5px;
+  display: initial;
+}
+
+#giftGuide .header-text {
+  font-size: 1.4em;
+  margin-bottom: -10px;
+}
+
+#giftGuide input[type="radio"] {
+  margin: 20px 0 0;
+}
+
+#giftGuide .result {
+  font-weight: bold;
+}
+
+#giftGuide #Reset {
+
+}
+
+#giftGuide .gg-btn-back, #giftGuide .gg-btn-submit {
+    background: #3972b1;
+    color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 1px 1px 1px #777;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    text-decoration: none;
+    display: block;
+    border: 0;
+    float: left;
+    margin-right: 15px;
+ //   behavior: url(/PIE.htc);
+}
+
+#giftGuide .gg-btn-reset {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    color: #fff;
+    padding: 10px;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    text-decoration: none;
+    display: block;
+    float: left;
+    margin-right: 15px;
+    behavior: url(/PIE.htc);
+}
+
+.gg-step-bubble {
+    border-radius: 50%;
+    height: 38px;
+    width: 38px;
+    line-height: 38px;
+    text-align: center;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    float: left;
+    behavior: url(/PIE.htc);
+}
+
+.gg-step.active .gg-step-bubble {
+
+}
+
+.gg-step-label {
+    float: left;
+    line-height: 38px;
+    font-size: 24px;
+    margin-left: 15px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pgc-clearfix {
+    clear: both;
+}
+
+.gg-step-line {
+    width: 1px;
+    height: 20px;
+    background: orange;
+    margin-left: 19px;
+}
+
+#giftGuideSteps {
+    margin-bottom: 25px;
+}

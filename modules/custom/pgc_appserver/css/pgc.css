@@ -1,0 +1,82 @@
+#pgc-app-container #pgc-tabs {
+    padding: 0;
+    margin: 0;
+    position: relative;
+}
+
+#pgc-app-container #pgc-tabs .pgc-tab {
+    list-style-type: none;
+    line-height: 60px;
+    font-size: 18px;
+    border-radius: 5px 5px 0 0;
+    padding: 0 15px;
+    background: #fff;
+    display: block;
+    float: left;
+    font-family: Helvetica, Arial, sans-serif;
+    border: 1px solid #c9c9c9;
+    margin-bottom: -3px;
+    border-bottom: 0;
+    z-index: 10;
+}
+
+.pgc-clearfix {
+    clear: both;
+}
+
+#pgc-app {
+    border: 1px solid #c9c9c9;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 712px;
+    min-width: 500px;
+    min-height: 340px;
+    behavior: url(/PIE.htc);
+}
+
+body {
+  padding: 0 2px 0 2px;
+  margin:0;
+  overflow: hidden;
+}
+
+html {
+  overflow: hidden;
+}
+
+/* #GEP-55 - Starts */
+
+@media only screen and (max-width: 415px) {
+	
+  #pgc-app{
+  	min-width: auto;
+  }
+  
+  #pgc-gc .gc-diagram{
+  	margin-bottom:10px;
+  }
+  
+  #pgc-gc a.gc-btn-customize{
+  	float:none !important;
+  	margin:20% !important;
+  }
+  
+  #pgc-gc .gc-customize-container{
+  	width: auto !important;
+    float: none !important;
+  }
+  
+  #pgc-app .dk_mobile select, #pgc-app .dk_options{
+  	width:auto !important;
+  }
+  
+  #pgc-gc .gc-right .gc-question{
+  	padding-left:0px !important;
+  }
+  
+  #pgc-gc .gcd-label{
+  	font-size:10px !important;
+  }
+}
+
+/* #GEP-55 - Ends */

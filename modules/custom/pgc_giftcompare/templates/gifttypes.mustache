@@ -1,0 +1,25 @@
+Select up to three gift types to compare.<br /><br />
+<table>
+    <thead>
+        <tr>
+            <th>Your Goal</th><th>Your Gift</th>
+        </tr>
+    </thead>
+    <tbody>
+    {{#giftTypes}}
+        <tr>
+            <td>{{desc}}</td>
+            <td>
+                <input type="checkbox" value="{{abbr}}" id="{{abbr}}" class="giftOption" />
+                <label for="{{abbr}}">{{label}}</label>
+            </td>
+        </tr>
+    {{/giftTypes}}
+    <tr>
+        <td class="backCol"></td>
+        <td class="backCol">
+            <button id="compareBtn" class="gc-btn">Compare selected gifts</button>
+        </td>
+    </tr>
+    </tbody>
+</table>

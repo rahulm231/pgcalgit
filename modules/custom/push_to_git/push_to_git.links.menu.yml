@@ -1,0 +1,10 @@
+push_to_git.form:
+  route_name: push_to_git.form
+  title: 'Push to Git'
+  weight: 1000
+  description: 'Request local file and/or database changes to be pushed to production.'
+  parent: system.admin
+push_to_git.config_form:
+  route_name: push_to_git.config_form
+  title: 'Configure Push to Git'
+  parent: system.admin_config

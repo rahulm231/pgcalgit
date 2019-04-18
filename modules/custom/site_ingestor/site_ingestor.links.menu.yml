@@ -1,0 +1,5 @@
+site_ingestor.ingest_form_1:
+  route_name: site_ingestor.ingest_form_1
+  title: 'Site Ingestor'
+  weight: 999
+  description: 'Ingest or manage an ingested site.'

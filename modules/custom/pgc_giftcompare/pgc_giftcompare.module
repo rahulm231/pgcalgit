@@ -1,0 +1,680 @@
+<?php
+
+function pgc_giftcompare_menu() {
+  $menu = array();
+
+  $menu['user/%user/gift-comparison-types'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Gift Comparison Types',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pgc_giftcompare_type_settings', 1),
+    'access callback' => 'pgc_giftcompare_perm_check',
+    'access arguments' => array(1),
+    'tab_parent' => 'user/%/edit',
+    'weight' => 99,
+  );
+
+  $menu['user/%user/gift-comparison-table'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Gift Comparison Table',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pgc_giftcompare_table_settings', 1),
+    'access callback' => 'pgc_giftcompare_perm_check',
+    'access arguments' => array(1),
+    'tab_parent' => 'user/%/edit',
+    'weight' => 100,
+  );
+
+  return $menu;
+}
+
+function pgc_giftcompare_perm_check($edit_user) {
+  global $user;
+  return ($edit_user->uid == $user->uid && user_access('edit own giftcompare')) || user_access('edit any giftcompare');
+}
+
+function pgc_giftcompare_permission() {
+  return array(
+    'edit any giftcompare' => array(
+      'title' => t('Edit Any Gift Compare'),
+      'description' => t('Perform administration tasks for any Gift Compare'),
+    ),
+    'edit own giftcompare' => array(
+      'title' => t('Edit Own Gift Compare'),
+      'description' => t('Perform administration tasks for one\'s own Gift Compare'),
+    ),
+  );
+}
+
+function pgc_giftcompare_type_settings($form, $form_state, $user) {
+  drupal_add_js(drupal_get_path('module', 'pgc_giftcompare').'/js/pgc_giftcompare.gifttypes.js');
+  if(isset($form_state['gift_types'])) {
+    $gift_types = $form_state['gift_types'];
+  }
+  else {
+    drupal_set_message('Changes made to Gift Types only be saved after pressing the "Save all changes" at the bottom of the page.', 'warning');
+    $gift_types = pgc_giftcompare_get_gift_types($user->uid);
+  }
+
+  $form['#tree'] = true;
+
+  $form['gift_types']['gift_type'] = array(
+    '#prefix' => '<div id="gift-types-fieldset-wrapper">',
+    '#suffix' => '</div>',
+    '#theme' => 'gift_types_drag_components',
+  );
+
+  for ($i = 0; $i < count($gift_types); $i++) {
+    $form['gift_types']['gift_type'][$i]['abbr'] = array(
+      '#type' => 'textfield',
+      '#size' => 10,
+      '#required' => true,
+      '#value' => isset($gift_types[$i]['abbr']) ? $gift_types[$i]['abbr'] : '',
+      '#attributes' => isset($gift_types[$i]['abbr']) && strlen($gift_types[$i]['abbr']) ? array('class' => array('abbr-disabled')) : array(),
+    );
+    $form['gift_types']['gift_type'][$i]['label'] = array(
+      '#type' => 'textfield',
+      '#size' => 60,
+      '#required' => true,
+      '#value' => isset($gift_types[$i]['label']) ? $gift_types[$i]['label'] : '',
+    );
+    $form['gift_types']['gift_type'][$i]['desc'] = array(
+      '#type' => 'textfield',
+      '#size' => 70,
+      '#required' => true,
+      '#value' => isset($gift_types[$i]['desc']) ? $gift_types[$i]['desc'] : '',
+    );
+    $form['gift_types']['gift_type'][$i]['delete'] = array(
+      '#type' => 'submit',
+      '#name' => 'delete_'.$i,
+      '#value' => t('Delete'),
+      '#submit' => array('pgc_giftcompare_gifttypes_delete'),
+      '#ajax' => array(
+        'callback' => 'pgc_giftcompare_add_gift_type_callback',
+        'wrapper' => 'gift-types-fieldset-wrapper',
+      ),
+      '#attributes' => array('class' => array('delete-btn')),
+    );
+    $form['gift_types']['gift_type'][$i]['weight'] = array(
+      '#type' => 'weight',
+      '#title' => t('Weight'),
+      '#value' => isset($gift_types[$i]['weight']) ? $gift_types[$i]['weight'] : $i,
+      '#delta' => 100,
+      '#title_display' => 'invisible',
+      '#attributes' => array('class' => array('field-weight')),
+    );
+  }
+
+  $form['gift_types']['add_gift_type'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add Gift Type'),
+    '#submit' => array('pgc_giftcompare_add_gift_type'),
+    '#ajax' => array(
+      'callback' => 'pgc_giftcompare_add_gift_type_callback',
+      'wrapper' => 'gift-types-fieldset-wrapper',
+    ),
+    '#suffix' => '<br /><br />',
+    '#attributes' => array('class' => array('add-btn')),
+  );
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save all changes',
+  );
+
+  return $form;
+}
+
+function pgc_giftcompare_type_settings_submit($form, $form_state) {
+  $uid = arg(1);
+  $gift_types = $form_state['input']['gift_types']['gift_type'];
+  usort($gift_types, "pgc_giftcompare_weight_order");
+  $gift_types = serialize($gift_types);
+  $result = db_select('giftcompare', 'g')
+    ->fields('g', array('uid'))
+    ->condition('uid', $uid, '=')
+    ->execute();
+  if($result->rowCount()) {
+    db_update('giftcompare')
+      ->fields(array(
+        'gift_types' => $gift_types
+      ))
+      ->condition('uid', $uid, '=')
+      ->execute();
+  } else {
+    db_insert('giftcompare') // Table name no longer needs {}
+      ->fields(array(
+        'gift_types' => $gift_types,
+        'uid' => $uid,
+      ))
+      ->execute();
+  }
+}
+
+function pgc_giftcompare_weight_order($a, $b) {
+  if ($a['weight'] == $b['weight']) {
+    return 0;
+  }
+  return ($a['weight'] < $b['weight']) ? -1 : 1;
+}
+
+/**
+ * Callback for both ajax-enabled buttons.
+ *
+ * Selects and returns the fieldset with the variables in it.
+ */
+function pgc_giftcompare_add_gift_type_callback($form, $form_state) {
+  return $form['gift_types']['gift_type'];
+}
+
+/**
+ * Submit handler for the "delete" button.
+ *
+ * Deletes a specific variable from the form
+ */
+function pgc_giftcompare_gifttypes_delete($form, &$form_state) {
+  if(count($form_state['input']['gift_types']['gift_type']) == 2) {
+    drupal_set_message("At least two gift types must be set", 'error');
+  } else {
+    $del_name = $form_state['triggering_element']['#name'];
+    $del_index = substr($del_name, strpos($del_name, '_')+1);
+    $gift_types = array();
+    foreach($form_state['input']['gift_types']['gift_type'] as $gift_type) {
+      $gift_types[] = array(
+        'abbr' => $gift_type['abbr'],
+        'label' => $gift_type['label'],
+        'desc' => $gift_type['desc'],
+        'weight' => $gift_type['weight'],
+      );
+    }
+    unset($gift_types[$del_index]);
+    $form_state['gift_types'] = array_values($gift_types);;
+    $form_state['rebuild'] = TRUE;
+  }
+}
+
+
+/**
+ * Submit handler for the "add-one-more" button.
+ *
+ * Increments the max counter and causes a rebuild.
+ */
+function pgc_giftcompare_add_gift_type($form, &$form_state) {
+  $gift_types = array();
+  foreach($form_state['input']['gift_types']['gift_type'] as $gift_type) {
+    $gift_types[] = array(
+      'abbr' => $gift_type['abbr'],
+      'label' => $gift_type['label'],
+      'desc' => $gift_type['desc'],
+      'weight' => $gift_type['weight'],
+    );
+  }
+  usort($gift_types, "pgc_giftcompare_weight_order");
+  $heaviest = $gift_types[count($gift_types)-1]['weight'] + 1;
+
+  $gift_types[] = array('abbr' => '', 'label' => '', 'desc' => '', 'weight' => $heaviest);
+  $form_state['gift_types'] = $gift_types;
+  $form_state['rebuild'] = TRUE;
+}
+
+function pgc_giftcompare_table_settings($form, $form_state, $user) {
+  drupal_add_js(drupal_get_path('module', 'pgc_giftcompare').'/js/pgc_giftcompare.table.js');
+  // Preserve values from the form state (for AJAX)
+  if(isset($form_state['feature_list'])) {
+    $feature_list = $form_state['feature_list'];
+    $gift_type_features = $form_state['gift_type_features'];
+  } else {
+    drupal_set_message('Changes made to Gift Features will only be saved after pressing "Save all changes" at the bottom of the page.', 'warning');
+    $feature_list = pgc_giftcompare_get_feature_list($user->uid);
+    $gift_type_features = pgc_giftcompare_get_gift_type_features($user->uid);
+  }
+  $gift_types = pgc_giftcompare_get_gift_types($user->uid);
+  $form['#tree'] = true;
+  // Features table
+  $form['gift_features']['gift_feature'] = array(
+    '#prefix' => '<div id="gift-features-fieldset-wrapper">',
+    '#suffix' => '</div>',
+    '#theme' => 'gift_features_drag_components',
+  );
+
+  watchdog('giftcompare', print_r($feature_list, true), array(), WATCHDOG_INFO);
+  for ($i = 0; $i < count($feature_list); $i++) {
+    $form['gift_features']['gift_feature'][$i]['feature'] = array(
+      '#type' => 'textfield',
+      '#size' => 40,
+      '#title' => 'Feature',
+      '#required' => true,
+      '#value' => is_array($feature_list[$i]) ? $feature_list[$i]['feature'] : $feature_list[$i],
+    );
+    $form['gift_features']['gift_feature'][$i]['delete'] = array(
+      '#type' => 'submit',
+      '#name' => 'delete_'.$i,
+      '#value' => t('Delete'),
+      '#title' => 'Delete',
+      '#submit' => array('pgc_giftcompare_gift_feature_delete'),
+      '#ajax' => array(
+        'callback' => 'pgc_giftcompare_add_feature_callback',
+        'wrapper' => 'gift-features-fieldset-wrapper',
+      ),
+      '#attributes' => array('class' => array('delete-btn')),
+    );
+    for($x = 0; $x < count($gift_types); $x++) {
+      $gift_abbr = $gift_types[$x]['abbr'];
+      $field_name = $gift_types[$x]['abbr'];
+      $form['gift_features']['gift_feature'][$i][$field_name] = array(
+        '#type' => 'checkbox',
+        '#title' => $gift_types[$x]['abbr'],
+        '#value' => isset($gift_type_features[$gift_abbr]) && in_array($i, $gift_type_features[$gift_abbr]) ? true : false,
+      );
+    }
+    $form['gift_features']['gift_feature'][$i]['weight'] = array(
+      '#type' => 'weight',
+      '#title' => t('Weight'),
+      '#value' => is_array($feature_list[$i]) ? $feature_list[$i]['weight'] : $i,
+      '#delta' => 100,
+      '#title_display' => 'invisible',
+      '#attributes' => array('class' => array('field-weight')),
+    );
+  }
+
+  $form['gift_features']['add_feature'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add Feature'),
+    '#submit' => array('pgc_giftcompare_add_feature'),
+    '#ajax' => array(
+      'callback' => 'pgc_giftcompare_add_feature_callback',
+      'wrapper' => 'gift-features-fieldset-wrapper',
+    ),
+    '#suffix' => '<br /><br />',
+  );
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save all changes',
+  );
+
+  return $form;
+}
+
+function pgc_giftcompare_add_feature_callback($form, $form_state) {
+  return $form['gift_features']['gift_feature'];
+}
+
+function pgc_giftcompare_add_feature($form, &$form_state) {
+  $gift_features = $form_state['input']['gift_features']['gift_feature'];
+  usort($gift_features, "pgc_giftcompare_weight_order");
+  $feature_list = array();
+  $gift_type_features = array();
+  for($i = 0; $i < count($gift_features); $i++) {
+    $gift_feature = $gift_features[$i];
+    $feature_list[] = array('feature' => $gift_feature['feature'], 'weight' => $gift_feature['weight']);
+    unset($gift_feature['feature']);
+    unset($gift_feature['weight']);
+    foreach($gift_feature as $gift_type => $val) {
+      if($val)
+        $gift_type_features[$gift_type][] = $i;
+    }
+  }
+
+  $heaviest = $feature_list[count($feature_list)-1]['weight'] + 1;
+
+  $feature_list[] = array('feature' => '', 'weight' => $heaviest);
+  $form_state['feature_list'] = $feature_list;
+  $form_state['gift_type_features'] = $gift_type_features;
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Submit handler for the "delete" button.
+ *
+ * Deletes a specific variable from the form
+ */
+function pgc_giftcompare_gift_feature_delete($form, &$form_state) {
+  if(count($form_state['input']['gift_features']['gift_feature']) == 2) {
+    drupal_set_message("At least two gift features must be set", 'error');
+  } else {
+    $gift_features = $form_state['input']['gift_features']['gift_feature'];
+    $del_name = $form_state['triggering_element']['#name'];
+    $del_index = substr($del_name, strpos($del_name, '_')+1);
+    $feature_list = array();
+    $gift_type_features = array();
+    for($i = 0; $i < count($gift_features); $i++) {
+      $gift_feature = $gift_features[$i];
+      $feature_list[] = array('feature' => $gift_feature['feature'], 'weight' => $gift_feature['weight']);
+      unset($gift_feature['feature']);
+      unset($gift_feature['weight']);
+      foreach($gift_feature as $gift_type => $val) {
+        if($val)
+          $gift_type_features[$gift_type][] = $i;
+      }
+    }
+    unset($feature_list[$del_index]);
+    $form_state['feature_list'] = array_values($feature_list);
+    $form_state['gift_type_features'] = $gift_type_features;
+    $form_state['rebuild'] = TRUE;
+  }
+}
+
+function pgc_giftcompare_table_settings_submit($form, $form_state) {
+  $uid = arg(1);
+  $gift_features = $form_state['input']['gift_features']['gift_feature'];
+  usort($gift_features, "pgc_giftcompare_weight_order");
+  $features_output = array();
+  $gift_type_features = array();
+  for($i = 0; $i < count($gift_features); $i++) {
+    $gift_feature = $gift_features[$i];
+    $features_output[] = array('feature' => $gift_feature['feature'], 'weight' => $gift_feature['weight']);
+    unset($gift_feature['feature']);
+    unset($gift_feature['weight']);
+    foreach($gift_feature as $gift_type => $val) {
+      if($val)
+        $gift_type_features[$gift_type][] = $i;
+    }
+  }
+  $gift_type_features = serialize($gift_type_features);
+  $features_output = serialize($features_output);
+
+  $result = db_select('giftcompare', 'g')
+    ->fields('g', array('uid'))
+    ->condition('uid', $uid, '=')
+    ->execute();
+  if($result->rowCount()) {
+    db_update('giftcompare')
+      ->fields(array(
+        'gift_type_features' => $gift_type_features,
+        'gift_features' => $features_output,
+      ))
+      ->condition('uid', $uid, '=')
+      ->execute();
+  } else {
+    db_insert('giftcompare') // Table name no longer needs {}
+      ->fields(array(
+        'gift_type_features' => $gift_type_features,
+        'gift_features' => $features_output,
+        'uid' => $uid,
+      ))
+      ->execute();
+  }
+}
+
+function pgc_giftcompare_get_gift_types($org_id) {
+  $result = db_select('giftcompare', 'g')
+    ->fields('g', array('gift_types'))
+    ->condition('uid', $org_id, '=')
+    ->execute();
+  if($result->rowCount()) {
+    while($gift_types = $result->fetchAssoc()) {
+      if(strlen($gift_types['gift_types'])) {
+        $gift_types = unserialize($gift_types['gift_types']);
+        if(count($gift_types) > 1)
+          return $gift_types;
+      }
+    }
+  }
+
+  return pgc_giftcompare_get_default_gift_types();
+}
+
+function pgc_giftcompare_get_gift_type_features($org_id) {
+  $result = db_select('giftcompare', 'g')
+    ->fields('g', array('gift_type_features'))
+    ->condition('uid', $org_id, '=')
+    ->execute();
+
+  if($result->rowCount()) {
+    while($gift_type_features = $result->fetchAssoc()) {
+      if(strlen($gift_type_features['gift_type_features'])) {
+        $gift_type_features = unserialize($gift_type_features['gift_type_features']);
+        if(count($gift_type_features) > 1)
+          return $gift_type_features;
+      }
+    }
+  }
+  return pgc_giftcompare_get_default_gift_features();
+}
+
+function pgc_giftcompare_get_feature_list($org_id) {
+  $result = db_select('giftcompare', 'g')
+    ->fields('g', array('gift_features'))
+    ->condition('uid', $org_id, '=')
+    ->execute();
+
+  if($result->rowCount()) {
+    while($features = $result->fetchAssoc()) {
+      if(strlen($features['gift_features'])) {
+        $features = unserialize($features['gift_features']);
+        return $features;
+      }
+    }
+  }
+  return pgc_giftcompare_get_default_feature_list();
+}
+
+function pgc_giftcompare_js_compiler($org_id) {
+  global $base_url;
+  $base_path = $base_url . '/';
+  
+  // #GEP-66 - Starts here
+  $gifttypeArray = (array) pgc_giftcompare_get_gift_types($org_id);
+  $giftTypes = array();
+  foreach($gifttypeArray as $gifttype){
+  	$abbr = $gifttype['abbr'];
+  	if($abbr === "ogc")
+  	  $abbr = "og";
+  	if($abbr === "ogap")
+  	  $abbr = "pts";
+  	if($abbr === "rp")
+  	  $abbr = "rpa";
+  	$gifttype['info_link'] = pgc_giftcalcs_get_default_value($org_id, $abbr, 'info_link', '');
+	$giftTypes[] = $gifttype;
+  }  
+  // #GEP-66 - Ends here
+  
+  $config = array(
+    'cssIncludes' => array(
+      (object) array('path' => $base_path . drupal_get_path('module', 'pgc_giftcompare').'/css/giftcompare.css'),
+    ),
+    'templates' => pgc_giftcompare_load_templates(),
+    'giftTypes' => $giftTypes, // (array) pgc_giftcompare_get_gift_types($org_id), #GEP-66
+    'giftFeatureLabels' => pgc_giftcompare_get_feature_list($org_id),
+    'giftFeatures' => pgc_giftcompare_get_gift_type_features($org_id),
+    'misc' => pgc_giftcalcs_get_general_settings($org_id),
+  );
+  
+  
+
+  $output = file_get_contents(drupal_get_path('module', 'pgc_giftcompare') . '/js/giftcompare.js');
+  $output .= "PGC.apps.giftCompare.config = '" . addslashes(json_encode($config)) . "';";
+  return $output;
+}
+
+/**
+ * Loads all of the mustache templates
+ * @return array
+ */
+function pgc_giftcompare_load_templates() {
+  $templates = array();
+  if ($handle = opendir(drupal_get_path('module', 'pgc_giftcompare') . '/templates')) {
+    while (false !== ($entry = readdir($handle))) {
+      if ($entry != "." && $entry != "..") {
+        $templateName = substr($entry, 0, strpos($entry, '.'));
+        $templates[$templateName] = file_get_contents(drupal_get_path('module', 'pgc_giftcompare') . '/templates/'.$entry);
+      }
+    }
+    closedir($handle);
+  }
+  return $templates;
+}
+
+function pgc_giftcompare_get_default_gift_types() {
+  return array(
+    array(
+      'abbr' => 'ga',
+      'label' => 'Charitable Gift Annuity',
+      'desc' => 'A gift that pays fixed annual payments.',
+    ),
+    array(
+      'abbr' => 'crat',
+      'label' => 'Charitable Remainder Annuity Trust',
+      'desc' => 'A trust that pays fixed annual payments.',
+    ),
+    array(
+      'abbr' => 'crut',
+      'label' => 'Charitable Remainder Unitrust',
+      'desc' => 'A trust that pays variable annual payments.',
+    ),
+    array(
+      'abbr' => 'clat',
+      'label' => 'Charitable Lead Trust',
+      'desc' => 'A gift that reduces taxes upon your estate.',
+    ),
+    array(
+      'abbr' => 'rle',
+      'label' => 'Retained Life Estate',
+      'desc' => 'Give your home and continue to live there.',
+    ),
+    array(
+      'abbr' => 'rp',
+      'label' => 'Retirement Plan Gift',
+      'desc' => 'Give retirement assets to help avoid taxes.',
+    ),
+    array(
+      'abbr' => 'bqt',
+      'label' => 'Bequest in Will',
+      'desc' => 'A revocable gift upon your death.',
+    ),
+    array(
+      'abbr' => 'li',
+      'label' => 'Life Insurance Gift',
+      'desc' => 'Use insurance assets to help avoid taxes.',
+    ),
+    array(
+      'abbr' => 'ogap',
+      'label' => 'Gift of Appreciated Property',
+      'desc' => 'A gift that gives immediate benefits.',
+    ),
+    array(
+      'abbr' => 'ogc',
+      'label' => 'Outright Gift',
+      'desc' => 'The simplest gift is a gift of cash.',
+    ),
+    array(
+      'abbr' => 're',
+      'label' => 'Real Estate Gift',
+      'desc' => 'Avoid taxes on the sale of real estate.',
+    ),
+  );
+}
+
+function pgc_giftcompare_get_default_feature_list() {
+  $feature_list = array(
+    0 => array('feature' => 'Reduce income taxes', 'weight' => 0),
+    1 => array('feature' => 'Reduce estate taxes', 'weight' => 1),
+    2 => array('feature' => 'Reduce capital gains taxes', 'weight' => 2),
+    3 => array('feature' => 'Fixed Stable income', 'weight' => 3),
+    4 => array('feature' => 'Variable Income', 'weight' => 4),
+    5 => array('feature' => 'Higher payout on low dividends', 'weight' => 5),
+    6 => array('feature' => '$100,000 or more', 'weight' => 6),
+    7 => array('feature' => 'Under $100,000', 'weight' => 7),
+    8 => array('feature' => 'Cash', 'weight' => 8),
+    9 => array('feature' => 'Appreciated securities', 'weight' => 9),
+    10 => array('feature' => 'Real estate', 'weight' => 10),
+    11 => array('feature' => 'Personal residence', 'weight' => 11),
+    12 => array('feature' => 'Art, antiques, collectibles', 'weight' => 12),
+  );
+
+  return $feature_list;
+}
+
+function pgc_giftcompare_get_default_gift_features() {
+  $gift_features = array(
+    'ogc' => array(0, 1, 6, 7, 8),
+    're' => array(0, 1, 2, 6, 7, 10, 11),
+    'ogap' => array(0, 1, 2, 6, 7, 10, 11, 12),
+    'li' => array(1, 6, 7),
+    'rp' => array(0, 1, 6, 7),
+    'bqt' => array(1, 6, 7, 8, 9, 10, 11, 12),
+    'rle' => array(0, 1, 2, 6, 7, 10, 11),
+    'clat' => array(1, 6, 8, 9, 10),
+    'ga' => array(0, 1, 2, 3, 5, 6, 7, 8, 9),
+    'crat' => array(0, 1, 2, 3, 5, 6, 8, 9),
+    'crut' => array(0, 1, 2, 4, 5, 6, 8, 9, 10)
+  );
+
+  return $gift_features;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pgc_giftcompare_theme($existing, $type, $theme, $path) {
+  $themes = array(
+    'gift_types_drag_components' => array(
+      'render element' => 'element'
+    ),
+    'gift_features_drag_components' => array(
+      'render element' => 'element'
+    ),
+  );
+  return $themes;
+}
+
+// Custom theme output.
+function theme_gift_types_drag_components($vars) {
+  $element = $vars['element'];
+  drupal_add_tabledrag('gift_types', 'order', 'sibling', 'field-weight');
+
+  $header = array(
+    'abbr' => t('Abbreviation'),
+    'label' => t('Label'),
+    'desc' => t('Description'),
+    'delete' => t('Delete'),
+    'weight' => t('Weight'),
+  );
+
+  $rows = array();
+  foreach (element_children($element) as $key) {
+    $row = array();
+    $row['data'] = array();
+    foreach ($header as $fieldname => $title) {
+      $row['data'][] = drupal_render($element[$key][$fieldname]);
+      $row['class'] = array('draggable');
+    }
+    $rows[] = $row;
+  }
+
+  return theme('table', array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array('id' => 'gift_types'),
+  ));
+}
+
+// Custom theme output.
+function theme_gift_features_drag_components($vars) {
+  $element = $vars['element'];
+  drupal_add_tabledrag('gift_features', 'order', 'sibling', 'field-weight');
+
+  $header = array();
+
+  $rows = array();
+  foreach (element_children($element) as $key) {
+    $row = array();
+    $row['data'] = array();
+    foreach ($element[$key] as $fieldname => $data) {
+      if(strpos($fieldname, '#') !== 0) {
+        $header[$fieldname] = $element[$key][$fieldname]['#title'];
+        unset($element[$key][$fieldname]['#title']);
+        $row['data'][] = drupal_render($element[$key][$fieldname]);
+        $row['class'] = array('draggable');
+      }
+    }
+    $rows[] = $row;
+  }
+
+  return theme('table', array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array('id' => 'gift_features'),
+  ));
+}

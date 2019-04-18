@@ -1,0 +1,544 @@
+<?php
+define('WEB_SERVICE_PATH', 'https://test.pgcalc.com/CheetahSheetsServerTest/Service1.svc/');
+
+/**
+ * Implementation of hook_menu()
+ */
+function pgc_appserver_menu() {
+  $items['apps/gcgs/%/%'] = array(
+    'page callback' => 'pgc_appserver_gcgs_callback',
+    'page arguments' => array(2, 3),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  $items['apps/gg/%'] = array(
+    'page callback' => 'pgc_appserver_gg_callback',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  $items['apps/giftcompare/%'] = array(
+    'page callback' => 'pgc_appserver_giftcompare_callback',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  $items['apps/landingcalcs/%/%/%'] = array(
+    'page callback' => 'pgc_appserver_landingcalcs_callback',
+    'page arguments' => array(2, 3, 4),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  $items['field/%/%/%'] = array(
+    'page callback' => 'pgc_appserver_field_callback',
+    'page arguments' => array(1, 2, 3),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  return $items;
+}
+
+/**
+ * Serves Gift Calcs and/or Gift Story where applicable.
+ * @param $org_id - Organization Id
+ * @param $gift_type - Gift Type Code
+ */
+function pgc_appserver_gcgs_callback($org_id, $gift_type) {
+  $org_id = pgc_appserver_orgid_from_appid($org_id);
+  global $base_url;
+  $base_path = $base_url . '/';
+  
+  // #PGCS-715 - Starts
+  if($gift_type=='none'){
+    $gift_type = pgc_giftcalcs_get_default_gift_type($org_id);	
+  }  
+  // #PGCS-715 - Ends
+  
+  $config = array(
+    'show_tabs' => true,
+    'templates' => pgc_appserver_load_templates(),
+    'cssIncludes' => (object) array('path' => $base_path . drupal_get_path('module', 'pgc_appserver').'/css/pgc.css'),
+    'server' => $base_url,
+    'misc' => pgc_appserver_misc_config($org_id),
+    'enabledGifts' => pgc_appserver_get_enabled_gift_abbrs($org_id),
+    // #GEP-53 - Starts Here
+    'square_corners' => pgc_giftcalcs_get_gc_config_value($org_id, 'square_corners', 0),
+    // #GEP-53 - Ends Here
+    // #GEP-54 - Starts Here
+    'remove_border' => pgc_giftcalcs_get_gc_config_value($org_id, 'remove_border', 0),
+    // #GEP-54 - Ends Here
+  );
+  drupal_add_http_header('Content-Type', 'application/javascript');
+  drupal_add_http_header('X-XSS-Protection', 0);
+  $jQuery = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/jquery-1.11.0.min.js');
+  $mustacheJS = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/mustache.min.js');
+  $PGC = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/pgc.js');
+  $json2 = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/json2.js');
+  $appJS = pgc_giftcalcs_js_compiler($org_id, $gift_type);
+  print $jQuery;
+  print $mustacheJS;
+  print $PGC;
+  print $json2;
+  print $appJS;
+  print "PGC.config = '" . addslashes(json_encode($config)) . "';";
+  print 'PGC.init();';
+  drupal_exit();
+}
+
+/**
+ * Retrieves the Drupal ID from an App ID string
+ */
+function pgc_appserver_orgid_from_appid($app_id) {
+  $result = db_select('field_data_field_app_id', 'f')
+    ->fields('f', array('entity_id'))
+    ->condition('field_app_id_value', $app_id, '=')
+    ->execute();
+
+  if($result->rowCount()) {
+    $entity_id = $result->fetchField(0);
+    $entity = entity_load('profile2', array($entity_id));
+    if(count($entity)) {
+      $uid = $entity[$entity_id]->uid;
+      return $uid;
+    }
+  } else {
+    watchdog('pgc_appserver', 'Application loaded with bad ID: ' . $app_id, array(), WATCHDOG_ERROR);
+    die('alert("Unable to load application, please ensure application ID is correct.");');
+  }
+}
+
+/**
+ * Serves Gift Guide
+ * @param $org_id - Organization Id
+ */
+function pgc_appserver_gg_callback($org_id) {
+  global $base_url;
+  $org_id = pgc_appserver_orgid_from_appid($org_id);
+  $config = array(
+    'show_tabs' => false,
+    'templates' => pgc_appserver_load_templates(),
+    'server' => $base_url,
+    'misc' => pgc_appserver_misc_config($org_id),
+    'enabledGifts' => pgc_appserver_get_enabled_gift_keys($org_id),
+  );
+  drupal_add_http_header('Content-Type', 'application/javascript');
+  drupal_add_http_header('X-XSS-Protection', 0);
+  $jQuery = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/jquery-1.11.0.min.js');
+  $mustacheJS = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/mustache.min.js');
+  $PGC = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/pgc.js');
+  $json2 = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/json2.js');
+  $appJS = pgc_giftguide_js_compiler($org_id);
+  print $jQuery;
+  print $mustacheJS;
+  print $PGC;
+  print $json2;
+  print $appJS;
+  print "PGC.config = '" . addslashes(json_encode($config)) . "';";
+  print 'PGC.init();';
+  drupal_exit();
+}
+
+/**
+ * Serves Gift Compare
+ * @param $org_id - Organization Id
+ */
+function pgc_appserver_giftcompare_callback($org_id) {
+  global $base_url;
+  $org_id = pgc_appserver_orgid_from_appid($org_id);
+  $config = array(
+    'show_tabs' => false,
+    'templates' => pgc_appserver_load_templates(),
+    'server' => $base_url,
+    'misc' => pgc_appserver_misc_config($org_id),
+  );
+  drupal_add_http_header('Content-Type', 'application/javascript');
+  drupal_add_http_header('X-XSS-Protection', 0);
+  $jQuery = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/jquery-1.11.0.min.js');
+  $mustacheJS = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/mustache.min.js');
+  $PGC = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/pgc.js');
+  $json2 = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/json2.js');
+  $appJS = pgc_giftcompare_js_compiler($org_id);
+  print $jQuery;
+  print $mustacheJS;
+  print $PGC;
+  print $json2;
+  print $appJS;
+  print "PGC.config = '" . addslashes(json_encode($config)) . "';";
+  print 'PGC.init();';
+  drupal_exit();
+}
+
+/**
+ * Serves Landing Calcs
+ * @param $org_id - Organization Id
+ * @param $gift_type - Gift Type
+ * @param $instance - Instance ID
+ */
+function pgc_appserver_landingcalcs_callback($org_id, $gift_type, $instance) {
+  global $base_url;
+  $org_id = pgc_appserver_orgid_from_appid($org_id);
+  $config = array(
+    'show_tabs' => false,
+    'templates' => pgc_appserver_load_templates(),
+    'server' => $base_url,
+    'misc' => pgc_appserver_misc_config($org_id),    
+  );
+  drupal_add_http_header('Content-Type', 'application/javascript');
+  drupal_add_http_header('X-XSS-Protection', 0);
+  $jQuery = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/jquery-1.11.0.min.js');
+  $mustacheJS = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/mustache.min.js');
+  $PGC = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/pgc.js');
+  $json2 = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/js/json2.js');
+  $appJS = pgc_landingcalcs_js_compiler($org_id, $gift_type, $instance);
+  print $jQuery;
+  print $mustacheJS;
+  print $PGC;
+  print $json2;
+  print $appJS;
+  print "PGC.config = '" . addslashes(json_encode($config)) . "';";
+  print 'PGC.init();';
+  drupal_exit();
+}
+
+/**
+ * List the gift type abbreviations.
+ *
+ * @return array
+ *   a non-associative array of gift type abbreviations
+ */
+function pgc_appserver_gift_type_abbr_list() {
+  $gift_types = pgc_appserver_gift_type_name_map();
+
+  return array_keys($gift_types);
+}
+
+/**
+ * Map the gift type abbreviations to their full names.
+ *
+ * @return array
+ *   an associative array with keys the abbreviations and values the full names
+ */
+function pgc_appserver_gift_type_name_map() {
+  $gift_types = array(
+    // #GEP-4 starts to display diagram for All Gifts type by default
+    'all' => 'All Gifts',
+    // #GEP-4 ends
+    'ga' => 'Charitable Gift Annuity',
+    'bqt' => 'Bequest',
+    'dga' => 'Deferred Gift Annuity',
+    'crut' => 'Charitable Remainder Unitrust',
+    'crat' => 'Charitable Remainder Annuity Trust',
+    'pif' => 'Pooled Income Fund',
+    // #GEP-13 - starts
+    'pif2' => 'Pooled Income Fund #2',
+    'pif3' => 'Pooled Income Fund #3',
+    'pif4' => 'Pooled Income Fund #4',
+    'pif5' => 'Pooled Income Fund #5',
+    // #GEP-13 - ends
+    'rle' => 'Retained Life Estate',
+    'clut' => 'Charitable Lead Unitrust',
+    'clat' => 'Charitable Lead Annuity Trust',
+    'cfu' => 'Flip Unitrust',
+  );
+  $gift_types += pgc_appserver_asset_type_name_map();
+
+  return $gift_types;
+}
+
+/**
+ * Map the asset type abbreviations to their full names.
+ *
+ * The asset types are included in pgc_appserver_gift_type_name_map() above, but
+ * sometimes need separate treatment.
+ *
+ * @return array
+ *   an associative array with keys the abbreviations and values the full names
+ */
+function pgc_appserver_asset_type_name_map() {
+  $asset_types = array(
+    'og' => 'Outright Gift',
+    'pts' => 'Publicly-Traded Securities',
+    're' => 'Real Estate',
+    'bs' => 'Bargain Sale',
+    'li' => 'Life Insurance',
+    'rpa' => 'Retirement Plan Assets',
+    'co' => 'Personal Property',
+  );
+
+  return $asset_types;
+}
+
+/**
+ * Loads all of the mustache templates
+ * @return array
+ */
+function pgc_appserver_load_templates() {
+  $templates = array();
+  if ($handle = opendir(drupal_get_path('module', 'pgc_appserver') . '/templates')) {
+    while (false !== ($entry = readdir($handle))) {
+      if ($entry != "." && $entry != "..") {
+        $templateName = substr($entry, 0, strpos($entry, '.'));
+        $templates[$templateName] = file_get_contents(drupal_get_path('module', 'pgc_appserver') . '/templates/'.$entry);
+      }
+    }
+    closedir($handle);
+  }
+  return $templates;
+}
+
+/**
+ * Adds misc. config settings
+ */
+function pgc_appserver_misc_config($org_id) {
+  $misc_config = array();
+  $profile = profile2_load_by_user($org_id, 'org');
+  foreach($profile as $id => $val) {
+    if(strpos($id, 'field_config') === 0) {
+      if(isset($val['und'])) {
+        $misc_config[substr($id, 13)] = $val['und'][0]['value'];
+      }
+    }
+  }
+
+  return $misc_config;
+}
+
+function pgc_appserver_get_enabled_gift_abbrs($org_id) {
+  $gift_type_abbrs = pgc_appserver_gift_type_abbr_list();
+  $enabled_gifts = array();
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+
+  foreach($gift_type_abbrs as $gift_type) {
+    if(isset($profile->{'field_'.$gift_type.'_enabled'}['und'])) {
+      if($profile->{'field_'.$gift_type.'_enabled'}['und'][0]['value'] == 1) {
+        $enabled_gifts[] = $gift_type;
+      }
+    }
+  }
+
+  return $enabled_gifts;
+}
+
+function pgc_appserver_get_enabled_gift_keys($org_id) {
+  $gift_type_abbrs = pgc_appserver_gift_type_abbr_list();
+  $enabled_gifts = array();
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+
+  foreach($gift_type_abbrs as $gift_type) {
+    if(isset($profile->{'field_'.$gift_type.'_enabled'}['und'])) {
+      if($profile->{'field_'.$gift_type.'_enabled'}['und'][0]['value'] == 1) {
+        $enabled_gifts[] = $gift_type;
+      }
+    }
+  }
+
+  return $enabled_gifts;
+}
+
+/**
+ * Return an array of arrays containing abbreviations pointing to labels
+ * @param $org_id
+ * @return array
+ */
+function pgc_appserver_get_enabled_gift_map($org_id, $weighted = false) {
+  $gift_type_abbrs = pgc_appserver_gift_type_abbr_list();
+  $enabled_gifts = array();
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+  $weights = array();
+  if($weighted) {
+    $query = db_select('field_group', 'g')
+              ->fields('g',array('group_name','data'))
+              ->condition('bundle', 'gifttypes');
+
+    $result = $query->execute();
+    while($record = $result->fetchAssoc()) {
+      $data = unserialize($record['data']);
+      $weights[str_replace('group_', '', $record['group_name'])] = $data['weight'];
+    }
+  }
+
+  // Hack: some fields were created with inconsistent names in PGCS-12.
+  // @see pgc_appserver_gift_type_name_map()
+  $oddballs = array_keys(pgc_appserver_asset_type_name_map());
+  // On second thought, exclude them completely: PGCS-195.
+  $gift_type_abbrs = array_diff($gift_type_abbrs, $oddballs);
+  
+  $i = 0;
+  foreach ($gift_type_abbrs as $gift_type) {
+    if (isset($profile->{'field_' . $gift_type . '_enabled'}['und'])) {
+      if ($profile->{'field_' . $gift_type . '_enabled'}['und'][0]['value'] == 1) {
+        $label = "field_{$gift_type}_label";
+        $gift = array(
+          'value' => $gift_type,
+          'text' => $profile->{$label}['und'][0]['value'],
+        );
+        if ($weighted) {
+          $gift['weight'] = isset($weights[$gift_type]) ? $weights[$gift_type] : $i;
+        }
+        $enabled_gifts[] = $gift;
+        $i++;
+      }
+    }
+  }
+
+  if($weighted) {
+    usort($enabled_gifts, "_pgc_appserver_gift_sort");
+  }
+  
+  return $enabled_gifts;
+}
+
+function _pgc_appserver_gift_sort($a, $b) {
+  if ($a['weight'] == $b['weight']) {
+    return 0;
+  }
+  return ($a['weight'] < $b['weight']) ? -1 : 1;
+}
+
+function pgc_appserver_field_callback($account, $profile_type, $field) {
+
+  $org_id = pgc_appserver_orgid_from_appid($account);
+  $field_value = pgc_appserver_get_profile_value($org_id, $profile_type, $field);
+  if($field_value)
+    print $field_value;
+  else
+    print 'fail';
+}
+
+function pgc_appserver_get_profile_value($org_id, $profile_type, $field) {
+  $profile = profile2_load_by_user($org_id, $profile_type);
+  if(isset($profile->{$field}['und'])) {
+    return $profile->{$field}['und'][0]['value'];
+  }
+  else {
+    return false;
+  }
+}
+
+/**
+ * Implementation of hook_field_widget_settings_form_alter()
+ */
+function pgc_appserver_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
+  $field_info = field_info_field($form['#instance']['field_name']);
+  if(isset($form_state['values']['instance']['settings']['colorpicker']))
+    $enabled = $form_state['values']['instance']['settings']['colorpicker'];
+  else if(isset($form['#instance']['settings']['colorpicker']))
+    $enabled = $form['#instance']['settings']['colorpicker'];
+
+  $enabled = isset($enabled) ? $enabled : 0;
+
+  if ($field_info['type'] == 'text') {
+    $form['instance']['settings']['colorpicker'] = array(
+      '#title' => '<strong>Enable Color Picker</strong>',
+      '#type' => 'checkbox',
+      '#default_value' => $enabled,
+      '#weight' => -1
+    );
+  }
+}
+
+/*
+ * Implementation of hook_field_widget_form_alter()
+ */
+function pgc_appserver_field_widget_form_alter(&$element, &$form_state, $context) {
+  // Are we on the node edit form, and enabled for this widget?
+  if(isset($context['instance']['settings']['colorpicker']) && $context['instance']['settings']['colorpicker'] == 1) {
+    $path = libraries_get_path('colorpicker');
+
+    array_push($element['value']['#attributes']['class'], 'colorpicker-widget');
+
+    // Attach the 3rd party CSS and JS files, and attach the module's JS files.
+    $element['#attached'] = array(
+      'css' => array(
+        // Add the 3rd party CSS files required for the form elmeent.
+        $path . '/css/colorpicker.css',
+      ),
+      'js' => array(
+        drupal_get_path('module', 'pgc_appserver') . '/js/colorpicker.js',
+        // Add the 3rd party JS files required for the form element.
+        $path . '/js/colorpicker.js',
+      ),
+    );
+  }
+}
+
+/**
+ * Returns an array containing the URL for each gift type's web service call.
+ *
+ * @return mixed
+ *   a single URL if $key is supplied, an array of URL's by default
+ */
+function pgc_appserver_webservice_urls($key = NULL) {
+  $web_service_path = variable_get('pgc_web_service_path', WEB_SERVICE_PATH);
+  $url = drupal_strip_dangerous_protocols($web_service_path);
+  $urls = array(
+    'email' => $url . 'PGC_EmailCalculation',
+    'donorData' => $url . 'PGC_LogDonorData',
+    'retrieveCalculation' => $url . 'PGC_RetrieveCalculation',
+    'annuityRateLookup' => $url . 'PGC_AnnuityRateLookup',
+    'ga' => $url . 'PGC_GiftAnnuityCalculation',
+    'dga' => $url . 'PGC_GiftAnnuityCalculation', // uses the same as GA
+    'crut' => $url . 'PGC_CharitableRemainderUnitrustCalculation',
+    'crat' => $url . 'PGC_CharitableRemainderAnnuityTrustCalculation',
+    'clat' => $url . 'PGC_CharitableLeadAnnuityTrustCalculation',
+    'clut' => $url . 'PGC_CharitableLeadUnitrustCalculation',
+    'cfu' => $url . 'PGC_CharitableRemainderUnitrustCalculation', // uses the same as CRUT
+    'rle' => $url . 'PGC_RetainedLifeEstateCalculation',
+    'pif' => $url . 'PGC_PooledIncomeFundCalculation',
+    // #GEP-13 - starts here
+    'pif2' => $url . 'PGC_PooledIncomeFundCalculation',
+    'pif3' => $url . 'PGC_PooledIncomeFundCalculation',
+    'pif4' => $url . 'PGC_PooledIncomeFundCalculation',
+    'pif5' => $url . 'PGC_PooledIncomeFundCalculation',
+    // #GEP-13 - ends here
+    'bqt' => $url . 'PGC_BequestToCharityCalculation',
+    'clientUpdate' => $url . 'PGC_ClientUpdate',
+    'GARTableValidation' => $url . 'PGC_GARTableValidation',
+    'adminSessionID' => $url . 'PGC_AdminSessionID',
+    'adminReports' => $url . 'PGC_AdminReports',
+  );
+
+  return ($key && isset($urls[$key])) ? $urls[$key] : $urls;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Add a section to admin/config/system/site-information.
+ */
+function pgc_appserver_form_system_site_information_settings_alter(&$form, &$form_state, $form_id) {
+  $form['pgcalc'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('PG Calc settings'),
+    '#weight' => -10,
+  );
+  $form['pgcalc']['pgc_web_service_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Web service base URL'),
+    '#description' => t(
+      'As of late 2014, the production URL is %prod and the beta URL is %beta.',
+      array(
+        '%prod' => WEB_SERVICE_PATH,
+        '%beta' => 'https://test.pgcalc.com/CheetahSheetsServerBeta/Service1.svc/',
+      )),
+    '#default_value' => variable_get('pgc_web_service_path', WEB_SERVICE_PATH),
+    '#size' => 80,
+  );
+  // Since system_settings_form() is called before our alter function, we have
+  // to handle submission ourselves.
+  $form['#submit'][] = 'pgc_appserver_form_system_site_information_settings_submit';
+}
+
+/**
+ * Form submission function.
+ *
+ * Set the pgc_web_service_path variable.
+ */
+function pgc_appserver_form_system_site_information_settings_submit(&$form, &$form_state) {
+  variable_set('pgc_web_service_path', $form_state['values']['pgc_web_service_path']);
+}

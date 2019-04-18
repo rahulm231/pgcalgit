@@ -1,0 +1,2539 @@
+<?php
+
+/**
+ * @file
+ * Generate usage reports from the web services, for the customer portal.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function pgc_giftcalcs_menu() {
+  $items['reports/giftcalcs'] = array(
+    'title' => 'GiftCalcs Usage Report',
+    'page callback' => 'pgc_giftcalcs_reports',
+    'page arguments' => array('summary'),
+    'file' => 'pgc_giftcalcs.reports.php',
+    'type' => MENU_NORMAL_ITEM,
+    'access callback' => 'user_is_logged_in',
+  );
+
+  $items['reports/giftcalcs/summary'] = array(
+    'title' => 'Summary',
+    'page callback' => 'pgc_giftcalcs_reports',
+    'page arguments' => array(2),
+    'file' => 'pgc_giftcalcs.reports.php',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'access callback' => 'user_is_logged_in',
+    'weight' => -10,
+  );
+
+  $items['reports/giftcalcs/details'] = array(
+    'title' => 'Details',
+    'page callback' => 'pgc_giftcalcs_reports',
+    'page arguments' => array(2),
+    'file' => 'pgc_giftcalcs.reports.php',
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => 'user_is_logged_in',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_action_info().
+ *
+ * Use this action with VBO to update the decimal profile fields.
+ */
+function pgc_giftcalcs_action_info() {
+  return array(
+    'pgc_giftcalcs_update_decimal_fields_action' => array(
+      'type' => 'entity',
+      'label' => t('Assign old values to new fields'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_property'),
+      'triggers' => array('any'),
+    ),
+  );
+}
+
+/**
+ * Action callback.
+ *
+ * Assign values from old fields to new ones.
+ */
+function pgc_giftcalcs_update_decimal_fields_action($entity, $context = array()) {
+  $old_fields = array(
+    'field_pif_highest_3_yr',
+    // 'field_ga_default_pr',
+    // 'field_dga_default_pr',
+    'field_crut_default_pr',
+    'field_cfu_default_pr',
+    'field_crat_default_pr',
+    'field_pif_default_pr',
+    'field_clat_default_pr',
+    'field_clut_default_pr',
+  );
+
+  $update = FALSE;
+  foreach ($old_fields as $field) {
+    if ($entity->{$field} && empty($entity->{$field . '_new'})) {
+      $entity->{$field . '_new'}['und'][0]['value'] = $entity->{$field}['und'][0]['value'];
+      $update = TRUE;
+    }
+  }
+
+  if ($update) {
+    $entity->save();
+  }
+}
+
+
+/**
+ * Combines Gift Calcs app JavaScript with custom data and templates.
+ *
+ * @param int $org_id
+ *   The user ID (uid) a.k.a. organization ID.
+ * @param string $gift_type
+ *   Gift type: one of 'ga', 'bqt', 'dga', 'crat', 'crut', 'clat', 'clut',
+ *   'pif', 'rle', 'cfu', or 'none' to use the default.
+ *
+ * @return string
+ *   some javascript
+ */
+function pgc_giftcalcs_js_compiler($org_id, $gift_type) {
+  global $base_url;
+  $base_path = $base_url . '/';
+  $diagrams = pgc_giftcalcs_get_diagrams($org_id);
+  // Do not use Bequest as a default. PGCS-22
+  $excluded_types = array('bqt');
+  // The default gift type will be the first one returned by
+  // pgc_appserver_get_enabled_gift_abbrs(); we may need to update that function
+  // in order to allow clients to set weights. We may have to add something
+  // similar in other parts of the code. This will not fail gracefully if none
+  // are selected.
+  $gift_types = array_diff(pgc_appserver_get_enabled_gift_abbrs($org_id),
+    $excluded_types);
+  // There should always be a reasonable value. Supply a default just in case.
+  $gift_type_default = $gift_types ? current($gift_types) : 'ga';
+  // #GEP-4 - starts - to include bqt in gift type drop down on question form
+  $gift_types_all = pgc_appserver_get_enabled_gift_abbrs($org_id);
+  $gift_type_default_forall = current($gift_types_all)=='all' ? next($gift_types_all) : current($gift_types_all);
+  // #GEP-4 - ends
+  // PGCS-24. Insert the customized labels into the diagram labels.
+  // @see pgc_giftcalcs_get_diagram_labels().
+  $diagram_labels = pgc_giftcalcs_get_diagram_labels($gift_type);
+  $gifttype_labels = pgc_giftcalcs_get_gifttype_labels($org_id);
+  foreach ($diagram_labels as $abbr => &$labels) {
+    if (isset($gifttype_labels[$abbr]) && $gifttype_labels[$abbr] && isset($labels['def'])) {
+      $labels['def'][3] = $gifttype_labels[$abbr];
+    }
+    unset($labels);
+  }
+  
+  $config = array(
+    'giftType' => $gift_type,
+    'giftTypeDefault' => $gift_type_default,
+    'giftTypeDefaultforAll' => $gift_type_default_forall, // #GEP-4, adding it so if default diagram is All Gifts then question form should show fields according to the first gift in gift types array
+    'placeholders' => pgc_giftcalcs_get_placeholder($org_id), // #GEP-15
+    'cssIncludes' => array(
+      'all' => array(
+        // These need to be objects to play nicely with mustache
+        // but it's easier to define them with array syntax.
+        (object) array('path' => $base_path . drupal_get_path('module', 'pgc_giftcalcs') . '/css/giftcalcs.css'),
+        (object) array('path' => $base_path . drupal_get_path('module', 'pgc_giftcalcs') . '/css/fonts.css'),
+        (object) array('path' => $base_path . drupal_get_path('module', 'pgc_giftcalcs') . '/css/dropkick.css'),
+      ),
+      'ie7' => array(
+        (object) array('path' => $base_path . drupal_get_path('module', 'pgc_giftcalcs') . '/css/ie7/ie7.css'),
+      ),
+    ),
+    // Mustache templates.
+    'templates' => pgc_giftcalcs_load_templates(),
+    // Diagrams.
+    'diagrams' => $diagrams,
+    // Diagram labels.
+    'diagram_labels' => $diagram_labels,
+    // Questions model.
+    'questions' => pgc_giftcalcs_get_questions($org_id, $gift_type, $gift_type_default),
+    // Validation rules.
+    'validation' => pgc_giftcalcs_get_validation_rules($org_id),
+    // Gift Type labels.
+    'gifttype_labels' => $gifttype_labels,
+    // Web Service URLs.
+    'wsURLs' => pgc_appserver_webservice_urls(),
+    // Web Service proxy URL (Used for IE).
+    'proxyURL' => $base_path . 'wsProxy.php',
+    // Gift details.
+    'gift_descriptions' => pgc_giftcalcs_get_gift_descriptions($org_id),
+    // Notes.
+    'notes' => pgc_giftcalcs_get_notes($org_id),
+    // General/misc settings.
+    'misc' => pgc_giftcalcs_get_general_settings($org_id),
+    // Static variable strings.
+    'static_variables' => pgc_giftcalcs_get_strings($org_id),
+    // Web Services GUID.
+    'wsguid' => pgc_giftcalcs_get_profile_value($org_id, 'field_wsguid', 'org'),
+    // IRS Discount Rates.
+    'discountRates' => pgc_giftcalcs_get_irs_discount_rates($org_id),
+    // Calculator Labels.
+    'calcLabels' => pgc_appserver_calc_labels_config($org_id),
+  );
+
+  $output = file_get_contents(drupal_get_path('module', 'pgc_giftcalcs') . '/js/giftcalcs.js');
+  //$output .= file_get_contents(drupal_get_path('module', 'pgc_giftcalcs') . '/js/jquery.dropkick-min.js');  // #GEP-69 - commented this line
+  $output .= "PGC.apps.giftCalcs.config = '" . addslashes(json_encode($config)) . "';";
+  return $output;
+}
+
+/**
+ * Finds labels for an organization.
+ *
+ * @param string $org_id
+ *   organization ID
+ *
+ * @return array
+ *   an array of labels, with keys 'gcHeaderLabel' and 'gcHiwLabel'
+ */
+function pgc_appserver_calc_labels_config($org_id) {
+  $profile = profile2_load_by_user($org_id, 'giftcalcs');
+
+  /* #GEP-54 - Starts
+  $label['gcHeaderLabel'] = (!empty($profile->field_gc_gc_label)) ?
+      $profile->field_gc_gc_label[LANGUAGE_NONE][0]['safe_value'] : 'Gift Calculator';
+
+  $label['gcHiwLabel'] = (!empty($profile->field_gc_hiw_label)) ?
+      $profile->field_gc_hiw_label[LANGUAGE_NONE][0]['safe_value'] : 'How it works';
+  */ 
+  
+  $label['gcHeaderLabel'] = (!empty($profile->field_gc_gc_label)) ?
+      $profile->field_gc_gc_label[LANGUAGE_NONE][0]['safe_value'] : '';
+
+  $label['gcHiwLabel'] = (!empty($profile->field_gc_hiw_label)) ?
+      $profile->field_gc_hiw_label[LANGUAGE_NONE][0]['safe_value'] : '';
+	  
+  // #GEP-54 - Ends
+  return $label;
+}
+
+/**
+ * Loads all of the mustache templates.
+ * @return array
+ *   an array of mustache templates
+ */
+function pgc_giftcalcs_load_templates() {
+  $templates = array();
+  if ($handle = opendir(drupal_get_path('module', 'pgc_giftcalcs') . '/templates')) {
+    while (FALSE !== ($entry = readdir($handle))) {
+      if ($entry != "." && $entry != "..") {
+        $template_name = substr($entry, 0, strpos($entry, '.'));
+        $templates[$template_name] = file_get_contents(drupal_get_path('module', 'pgc_giftcalcs') . '/templates/' . $entry);
+      }
+    }
+    closedir($handle);
+  }
+  return $templates;
+}
+
+/**
+ * Creates a Gift Calcs diagram.
+ *
+ * Returns an absolute URL to the diagram.
+ *
+ * @param object $profile
+ *   a profile2 object
+ * @param string $gift_type
+ *   Gift Type
+ * @param bool $singular
+ *   needs documentation
+ *
+ * @return mixed
+ *   a URL to the created diagram, FALSE on error
+ */
+function pgc_giftcalcs_create_diagram($profile, $gift_type, $singular = TRUE) {
+  $request = new stdClass();
+  $request->arrowColor = isset($profile->{'field_gc_arrow_color'}['und']) ?
+      $profile->{'field_gc_arrow_color'}['und'][0]['value'] : '#babcbe';
+  $request->iconColor = isset($profile->{'field_gc_arrow_color'}['und']) ?
+      $profile->{'field_gc_icon_color'}['und'][0]['value'] : '#de5900';
+  $request->icons = pgc_giftcalcs_get_diagram_icons($gift_type, $profile, $singular);
+
+  if (in_array($gift_type, array('clat', 'clut'))) {
+    $request->disableLastArrow = TRUE;
+  }
+  
+  $json = urlencode(json_encode($request));
+  $resp = drupal_http_request('http://localhost:3000/gcd?data=' . $json);
+  if (strpos($resp->data, 'Error:') !== FALSE || $resp->code != 200 || !strlen($resp->data)) {
+    return FALSE;
+  }
+  else {
+    // Hash the org id and gift type to prevent scanning all diagrams.
+    $file_name = md5($profile->uid . '-' . $gift_type);
+    if (!$singular) {
+      $file_name .= '-p';
+    }
+
+    $local_path = DRUPAL_ROOT . '/sites/default/files/diagrams/' . $file_name . '.png';
+    if (file_put_contents($local_path, $resp->data)) {
+      global $base_url;
+
+      if (strpos($base_url, 'https') === FALSE) {
+        // $base_url = str_replace('http', 'https', $base_url);
+      }
+      $absolute_url = $base_url . '/sites/default/files/diagrams/' . $file_name . '.png?' . time();
+      // Add timestamp to url to prevent caching.
+      return $absolute_url;
+    }
+    else {
+      return FALSE;
+    }
+  }
+}
+
+/**
+ * Gets the appropriate icons for a diagram.
+ *
+ * @param string $gift_type
+ *   Gift Type
+ * @param object $profile
+ *   a profile2 object
+ * @param bool $singular
+ *   needs documentation
+ *
+ * @return array
+ *   an array of icons
+ */
+function pgc_giftcalcs_get_diagram_icons($gift_type, $profile, $singular = TRUE) {
+  $gift_type = strtolower($gift_type);
+  $profile = profile2_load_by_user($profile->uid, 'giftcalcs');
+  $icons = array();
+  // The first four.
+  for ($i = 1; $i <= 4; $i++) {
+    // Use alternate first icon if we're generating a plural diagram.
+    if ($i == 1 && !$singular) {
+      if (isset($profile->{'field_gc_' . $gift_type . '_icon' . $i . '_p'}['und'])) {
+        $icons[] = drupal_realpath($profile->{'field_gc_' . $gift_type . '_icon' . $i . '_p'}['und'][0]['uri']);
+      }
+      else {
+        // Fall back to default.
+        $icons[] = pgc_giftcalcs_get_default_diagram_icon($gift_type, $i . 'p');
+      }
+    }
+    elseif (isset($profile->{'field_gc_' . $gift_type . '_icon' . $i}['und'])) {
+      // If we have a custom icon selected, use that.
+      $icons[] = drupal_realpath($profile->{'field_gc_' . $gift_type . '_icon' . $i}['und'][0]['uri']);
+    }
+    else {
+      // Otherwise consult the list of default icons for this gift type and
+      // placement.
+      $icons[] = pgc_giftcalcs_get_default_diagram_icon($gift_type, $i);
+    }
+  }
+  // The charity icon.
+  if (isset($profile->{'field_gc_cust_charity_icon'}['und'])) {
+    // Use the custom uploaded icon if available.
+    $icons[] = drupal_realpath($profile->{'field_gc_cust_charity_icon'}['und'][0]['uri']) . '?custom';
+  }
+  elseif (isset($profile->{'field_gc_charity_icon'}['und'])) {
+    // Else use the custom library icon if selected.
+    $icons[] = drupal_realpath($profile->{'field_gc_charity_icon'}['und'][0]['uri']);
+  }
+  else {
+    // Else use the default icon.
+    $icons[] = pgc_giftcalcs_get_default_diagram_icon($gift_type, 5);
+  }
+
+  // For CLUT and CLAT gift types, we need to swap the
+  // #4 and #5 icons.
+  if (in_array($gift_type, array('clat', 'clut'))) {
+    $charity_icon = $icons[4];
+    $icons[4] = $icons[3];
+    $icons[3] = $charity_icon;
+  }
+
+  return $icons;
+}
+
+/**
+ * Default diagram icons.
+ *
+ * @param string $gift_type
+ *   Gift Type.
+ * @param string $icon_id
+ *   icon ID.
+ *
+ * @return string
+ *   absolute path to the appropriate icon
+ */
+function pgc_giftcalcs_get_default_diagram_icon($gift_type, $icon_id) {
+  // Most keys are integers, but '1p' is used to denote the plural version.
+  $defaults = array(
+    1 => 'calc1.png',
+    '1p' => 'calc2.png',
+    2 => 'calc11.png',
+    3 => 'calc7.png',
+    4 => 'calc10.png',
+    5 => 'calc6.png',
+  );
+
+  $exceptions = array(
+    'bqt' => array(
+      4 => 'calc12.png',
+    ),
+    'rle' => array(
+      2 => 'calc6.png',
+      4 => 'calc12.png',
+    ),
+  );
+
+  $file = empty($exceptions[$gift_type][$icon_id])
+    ? $defaults[$icon_id] : $exceptions[$gift_type][$icon_id];
+
+  return DRUPAL_ROOT . '/sites/default/files/' . $file;
+}
+
+/**
+ * Implements hook_form_FORMID_alter().
+ *
+ * Adds custom validation functions to user/%/edit/gifttypes and
+ * user/%/edit/giftcalcs. For the second page, also add custom javascript to the
+ * form and populate the Embed Codes section.
+ */
+function pgc_giftcalcs_form_profile2_form_alter(&$form, $form_state) {
+  if (isset($form['profile_gifttypes'])) {
+    $gifttypes = &$form['profile_gifttypes'];
+    foreach ($gifttypes as $key => $val) {
+      if (strpos($key, 'default_pr')) {
+        $gifttypes[$key]['#element_validate'] = array('pgc_giftcalcs_pr_validate');
+      }
+    }
+    if (isset($gifttypes['field_dga_default_deferral'])) {
+      $gifttypes['field_dga_default_deferral']['#element_validate'] = array('pgc_giftcalcs_deferral_validate');
+    }
+  }
+  elseif (isset($form['profile_giftcalcs'])) {
+    global $base_url;
+    $uid = $form['#user']->uid;
+    $app_id = pgc_giftcalcs_get_profile_value($uid, 'field_app_id', 'org');
+	// #GEP-4 - starts - fetch which gift type is set for the profile to display by default on Preview Giftcalcs popup
+    $gift_type = pgc_giftcalcs_get_default_gift_type($uid);
+	// #GEP-4 - ends
+	
+    // Add JS for preview feature.
+    // #GEP-4 - starts - Add default gift type to add as a parameter instead of default none
+    //drupal_add_js(array('pgc_giftcalcs' => array('app_id' => $app_id)), 'setting'); changed to below line 
+	drupal_add_js(array('pgc_giftcalcs' => array('app_id' => $app_id, 'gift_type' => $gift_type)), 'setting');
+	// #GEP-4 - ends
+    drupal_add_js(drupal_get_path('module', 'pgc_giftcalcs') . '/js/preview.js');
+    // Add embed codes.
+    $form['profile_giftcalcs']['field_gc_config_gar_table']['#element_validate'] = array('pgc_giftcalcs_gar_table_validate');
+    foreach ($form['profile_giftcalcs'] as $key => $val) {
+      if (strpos($key, 'embed')) {
+        $gift_type = explode('_', $key);
+        $gift_type = $gift_type[1];
+        $form['profile_giftcalcs'][$key]['und'][0]['value']['#value']
+          = '<script type="text/javascript" src="' . $base_url . '/xdm/easyXDM.min.js"></script>' .
+            '<style type="text/css">#pgc-container iframe {width:100%;}</style>' .
+            '<div id="pgc-container" style="width:100%;"></div>' .
+            '<script type="text/javascript">' .
+            'var PGC = {};PGC.gift_type = \'' . $gift_type . '\';PGC.portal_id = \'' . $app_id . '\';' .
+            'PGC.hash = window.location.hash.length ? window.location.hash:\'\';' .
+            "PGC.server = '$base_url';" .
+            '</script>' .
+            '<script type="text/javascript" src="' . $base_url . '/js/giftcalcs.js"></script>';
+      }
+    }
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_page_alter().
+ */
+function pgc_giftcalcs_page_alter(&$page) {
+  // Add some CSS to the Media browser.
+  if (!empty($page['#theme']) && $page['#theme'] == 'media_dialog_page') {
+    $my_css = '/css/giftcalcs_media.css';
+    drupal_add_css(drupal_get_path('module', 'pgc_giftcalcs') . $my_css);
+  }
+}
+
+/**
+ * Default payment rate validation.
+ *
+ * Default payment rate must be >= min_pr && <= max_pr
+ *
+ * @param array $element
+ *   a form element
+ * @param array $form_state
+ *   the form state
+ */
+function pgc_giftcalcs_pr_validate($element, &$form_state) {
+  $field_name_parts = explode('_', $element['und'][0]['value']['#field_name']);
+  $gift_type = $field_name_parts[1];
+  $def_pr = $element['und'][0]['value']['#value'];
+
+  //if (isset($form_state['complete form']['profile_gifttypes']['field_' . $gift_type . '_min_pr'])) {
+  if (isset($form_state['input']['profile_gifttypes']['field_' . $gift_type . '_min_pr']) && $form_state['input']['profile_gifttypes']['field_'.$gift_type.'_enabled']['und']==1) { // #GEP-28
+    $min_pr = $form_state['complete form']['profile_gifttypes']['field_' . $gift_type . '_min_pr']['und'][0]['value']['#value'];
+    if ($def_pr < $min_pr) {
+      form_error($element, 'Default payment rate must be greater than or equal to minimum payment rate.');
+      return;
+    }
+  }
+
+  //if (isset($form_state['complete form']['profile_gifttypes']['field_' . $gift_type . '_max_pr'])) {
+  if (isset($form_state['complete form']['profile_gifttypes']['field_' . $gift_type . '_max_pr']) && $form_state['input']['profile_gifttypes']['field_'.$gift_type.'_enabled']['und']==1) { // #GEP-28
+    $max_pr = $form_state['complete form']['profile_gifttypes']['field_' . $gift_type . '_max_pr']['und'][0]['value']['#value'];
+    if ($def_pr > $max_pr) {
+      form_error($element, 'Default payment rate must be less than or equal to maximum payment rate.');
+      return;
+    }
+  }
+}
+
+/**
+ * Default payment deferral validation.
+ *
+ * The Default payment deferral must be at most the Max Deferred Age minus the
+ * Min Beneficiary Age.
+ */
+function pgc_giftcalcs_deferral_validate($element, &$form_state) {
+  $deferral = $form_state['values']['profile_gifttypes']['field_dga_default_deferral'][LANGUAGE_NONE][0]['value'];
+  $max_deferred_age = $form_state['values']['profile_gifttypes']['field_dga_max_def_age'][LANGUAGE_NONE][0]['value'];
+  $min_beneficiary_age = $form_state['values']['profile_gifttypes']['field_dga_min_ben_age'][LANGUAGE_NONE][0]['value'];
+  //if ($deferral > $max_deferred_age - $min_beneficiary_age) {
+  if ($deferral > $max_deferred_age - $min_beneficiary_age && $form_state['input']['profile_gifttypes']['field_dga_enabled']['und']==1) { // #GEP-28
+    form_error($element, t('Default payment deferral: the value cannot be more than Max Deferred Age minus Min Beneficiary Age'));
+  }
+  return TRUE;
+}
+
+/**
+ * GAR Table validation.
+ *
+ * @param array $element
+ *   a form element
+ * @param array $form_state
+ *   the form state
+ */
+function pgc_giftcalcs_gar_table_validate($element, &$form_state) {
+  $gar_table = $form_state['complete form']['profile_giftcalcs']['field_gc_config_gar_table']['und'][0]['value']['#value'];
+  $wsguid = pgc_giftcalcs_get_profile_value($form_state['complete form']['profile_giftcalcs']['#entity']->uid, 'field_wsguid', 'org');
+
+  $params = new stdClass();
+  $params->GarTable = $gar_table;
+  $params->WSGUID = $wsguid;
+
+  $url = pgc_appserver_webservice_urls('GARTableValidation');
+  $resp = drupal_http_request($url, array(
+    'method' => 'POST',
+    'data' => json_encode($params),
+    'headers' => array('Content-Type' => 'text'),
+  ));
+
+  if ($resp->code == 200 && json_decode($resp->data)) {
+    if ($data = json_decode($resp->data)) {
+      if ($data->Status == 'Valid') {
+        return TRUE;
+      }
+    }
+  }
+  else {
+    form_error($element, 'Invalid GAR Table. Please check the spelling. If the issue persists, please contact support.');
+  }
+}
+
+/**
+ * Implements hook_profile2_update().
+ *
+ * Creates GiftCalcs diagrams whenever the GiftCalcs
+ * profile is updated. Also validates the user entered
+ * GAR Table value
+ */
+function pgc_giftcalcs_profile2_update($profile) {
+  if ($profile->type == 'giftcalcs') {
+    $gift_types = pgc_appserver_gift_type_abbr_list();	
+    $uid = $profile->uid;
+    foreach ($gift_types as $gift_type) {
+      $singular_diagram = pgc_giftcalcs_create_diagram($profile, $gift_type);
+      $plural_diagram = pgc_giftcalcs_create_diagram($profile, $gift_type, FALSE);
+      // Make sure the diagrams were created.
+      if ($singular_diagram && $plural_diagram) {
+        // If so, delete any old diagrams.
+        db_delete('gc_diagrams')->condition('uid', $uid)->condition('calc_id', $gift_type)->execute();
+      }
+      // Store the created diagrams.  
+       
+      db_insert('gc_diagrams')
+          ->fields(array(
+            'uid' => $uid,
+            'calc_id' => $gift_type,
+            'singular' => $singular_diagram,
+            'plural' => $plural_diagram,
+          ))
+          ->execute();
+	   
+    }
+  }
+}
+
+/**
+ * Retrieves a diagram from the database.
+ *
+ * @param int $uid
+ *   user ID
+ *
+ * @return array
+ *   an array of diagrams
+ */
+function pgc_giftcalcs_get_diagrams($uid) {
+  $result = db_select('gc_diagrams', 'g')
+      ->fields('g', array('calc_id', 'singular', 'plural'))
+      ->condition('uid', $uid, '=')
+      ->execute();
+  $diagrams = array();
+  while ($diagram = $result->fetchAssoc()) {
+    if (strpos($diagram['singular'], 'https') === FALSE) {
+      // $diagram['singular'] = str_replace('http', 'https', $diagram['singular']);
+      // $diagram['plural'] = str_replace('http', 'https', $diagram['plural']);
+    }
+    $diagrams[$diagram['calc_id']] = array('singular' => $diagram['singular'], 'plural' => $diagram['plural']);
+  }
+  if (count($diagrams)) {
+    return $diagrams;
+  }
+  else {
+    // If for some reason we couldn't get the diagrams, return default versions.
+    return pgc_giftcalcs_get_default_diagrams();
+  }
+}
+
+/**
+ * Returns a default array of diagrams.
+ *
+ * This needs to return default diagram images for a gift type
+ * in case the generator fails
+ *
+ * @return array
+ *   an array of default diagrams
+ */
+function pgc_giftcalcs_get_default_diagrams() {
+  return array();
+}
+
+/**
+ * Provides the default diagram labels for the given gift type.
+ *
+ * @return array
+ *   an array of default diagram labels
+ * #GEP-51 - Added variable gainsNotTaxed for all gift types except All,CLUT and CLAT
+ * #GEP-62 - Added variable ordinaryIncome for gift types ga and dga
+ * #GEP-64 - Added variable propertyDonated for gift types rle
+ */
+function pgc_giftcalcs_get_diagram_labels() {
+  $diagram_labels = array(
+    // Bequests do not have customization labels.
+    // #GEP-4 - starts - Add labels for All Gifts diagram
+    // #GEP-8 change charity_nickname to charity_nickname_diagram
+    'all' => array(
+      'def' => array(
+        1 => 'Donor(s)',
+        2 => 'Give assets',
+        3 => 'All Gifts',
+        4 => 'Income tax deduction<br />Fixed or variable payments',
+        5 => 'Remainder to  [charity_nickname_diagram]',
+      ),
+	),
+	// #GEP-4 - ends 
+    'bqt' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Bequest',
+        4 => 'Estate tax deduction',
+        5 => 'Assets to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => 'Donor',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => 'Bequest',
+        4 => '[giftAmount] Estate tax deduction',
+        5 => '[giftAmount] to [charity_nickname_diagram]',
+      ),
+    ),
+    'ga' => array(
+      'def' => array(
+        1 => 'Donor(s)',
+        2 => 'Give assets',
+        3 => 'Gift annuity',
+        4 => 'Income tax deduction<br />
+              Fixed payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [annualPayments] Annual payments<br />
+              [taxFreePortion]
+              [capitalGainPortion]
+              [ordinaryIncome]
+              ',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    'dga' => array(
+      'def' => array(
+        1 => 'Donor(s)',
+        2 => 'Give assets',
+        3 => 'Deferred gift annuity',
+        4 => 'Income tax deduction<br />
+              Fixed payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),      
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [annualPayments] Annual payments start in [firstPaymentYear]<br />
+              [taxFreePortion]
+              [capitalGainPortion]
+              [ordinaryIncome]
+              ',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),	  
+    ),
+    'crut' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Remainder unitrust',
+        4 => 'Income tax deduction<br />
+              Variable payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] First year payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    'crat' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Remainder trust',
+        4 => 'Income tax deduction<br />
+              Fixed payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] Annual payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    'clat' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Transfer property',
+        3 => 'Lead annuity trust',
+        4 => 'Fixed payments to [charity_nickname_diagram]',
+        5 => 'Remainder to family',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] Transfer property',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Charitable deduction<br />
+              [firstYearPayments] Annual payment to [charity_nickname_diagram]',
+        5 => 'Remainder to Family',
+      ),
+    ),
+    'clut' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Transfer property',
+        3 => 'Lead unitrust',
+        4 => 'Variable payments to [charity_nickname_diagram]',
+        5 => 'Remainder to family',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] Transfer property',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Charitable deduction<br />
+              [firstYearPayments] First year payment to [charity_nickname_diagram]',
+        5 => 'Remainder to family',
+      ),
+    ),
+    'pif' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Pooled income fund',
+        4 => 'Income tax deduction<br />Variable payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] First year payments (estimated)', // #GEP-6
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    // #GEP-13 - starts
+    'pif2' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Pooled income fund #2',
+        4 => 'Income tax deduction<br />Variable payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] First year payments (estimated)', // #GEP-6
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    'pif3' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Pooled income fund #3',
+        4 => 'Income tax deduction<br />Variable payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] First year payments (estimated)', // #GEP-6
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    'pif4' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Pooled income fund #4',
+        4 => 'Income tax deduction<br />Variable payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] First year payments (estimated)', // #GEP-6
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+    'pif5' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Pooled income fund #5',
+        4 => 'Income tax deduction<br />Variable payments',
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+              [firstYearPayments] First year payments (estimated)', // #GEP-6
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),    
+    // #GEP-13 - ends
+    'rle' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Gift of home',
+        3 => 'Retained life estate',
+        4 => 'Income tax deduction<br />Keep living in your home',
+        5 => 'Home to [charity_nickname_diagram]',
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] Home',
+        3 => '[giftType]',
+        4 => '[taxDeduction] Income tax deduction
+        	  <br />[gainsNotTaxed]',
+        5 => '[propertyDonated] to [charity_nickname_diagram]',
+      ),
+    ),
+    'cfu' => array(
+      'def' => array(
+        1 => 'Donor',
+        2 => 'Give assets',
+        3 => 'Flip unitrust',
+        4 => 'Income tax deduction<br />Payments may change in the year of the flip',
+        5 => 'Remainder to [charity_nickname_diagram]', // #PGCS-532
+      ),
+      'cust' => array(
+        1 => '[donors]',
+        2 => '[giftAmount] [propertyType]<br />[costBasis]',
+        3 => '[paymentRate]<br />[giftType]',
+        4 => '[taxDeduction] Income tax deduction<br />
+        	  [gainsNotTaxed]
+        	  Pre-flip payments limited by net income<br />
+        	  Post-flip payments are [paymentRate] of trust value', // #GEP-6
+        5 => 'Remainder to [charity_nickname_diagram]',
+      ),
+    ),
+  );
+
+  return $diagram_labels;
+}
+
+/**
+ * The GiftCalcs questions model.
+ *
+ * @param string $org_id
+ *   organization ID
+ * @param string $gift_type
+ *   This determines whether the gift type select is shown
+ * @param string $gift_type_default
+ *   The type to use if $gift_type is 'none'
+ *
+ * @return array
+ *   an array of arrays defining questions
+ */
+function pgc_giftcalcs_get_questions($org_id, $gift_type, $gift_type_default) {
+  $questions = array();
+
+  $include_pay_freq = pgc_giftcalcs_get_gc_config_value($org_id, 'allow_pf', 0);
+  $include_pay_timing = pgc_giftcalcs_get_gc_config_value($org_id, 'allow_pt', 0);
+
+  // #GEP-24 - starts
+  //$gift_types = pgc_appserver_get_enabled_gift_map($org_id);  
+  $gift_types = pgc_giftcalcs_gift_type_order($org_id);  
+  // #GEP-24 - ends
+  
+  // #GEP-4 - starts - Remove All Gifts from Gift Type Dropdown on Preview Giftcalcs Popup and set default value of dropdown
+  if(isset($gift_types[0]) && $gift_types[0]['value']=='all'){ 
+    $gift_types = array_slice($gift_types, 1);	
+  }
+  
+  if($gift_type == 'none'){
+    if($gift_type_default=='all'){
+      // #GEP-67 - Starts here
+	  $include_select_one = pgc_giftcalcs_get_gc_config_value($org_id, 'selectone', 0);
+	  if($include_select_one=="1"){
+	    $gift_types = array_values($gift_types);
+	    array_unshift($gift_types , array('value'=>'select', 'text'=>'Select One'));	
+	  } 
+	  // #GEP-67 - Ends here  	  
+      $gift_type_value = $gift_types['0']['value'];	
+    }else{
+      $gift_type_value = $gift_type_default; 	
+    }
+  }else{
+    $gift_type_value = 	$gift_type;
+  } 
+  
+  // #PGCS-720 
+  $field_type = 'select';
+  foreach($_SERVER as $serv){
+  	if(strpos($serv,'/giftcalcs.php?')!==FALSE){
+  	  // when viewing from preview diagram in giftcalcs.com
+  	  if(strpos($serv, 'giftcalcsPreview.php')!==FALSE){
+  		$field_type = 'select';
+  	  }else{  	  	
+		// when viewing from marketing websites
+	  	if(strpos($serv,'gift_type=none')){
+	  	  $field_type = 'select';
+	  	}else{
+	  	  $field_type = 'hidden';	
+	  	}  	
+	  }	
+  	}
+  }
+  // #PGCS-720 
+  // #GEP-4 - ends
+
+  $questions['giftType'] = array(
+    'giftType' => 'all',
+    // #GEP-4 - starts - Always show Gift Type Select Box
+    //'type' => $gift_type == 'none' ? 'select' : 'hidden', // changed to below line
+    'type' => $field_type,
+    // #GEP-4 - ends
+    'label' => 'Gift type',
+    'options' => array_values($gift_types),
+    // #GEP-4 - starts - Set default value
+    //'value' => $gift_type == 'none' ? $gift_type_default : $gift_type, // changed to below line
+    'value' => $gift_type_value,
+    // #GEP-4 - ends
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B1'] = array(
+    'giftType' => 'all',
+    'type' => 'select',
+    'label' => 'Beneficiaries',
+    'conditions' => array(
+      'and' => array(
+        array('B2', 'f', '!='),
+        array('giftType', 'bqt', '!='),
+        array('giftType', 'select', '!='), #GEP-67
+      ),
+    ),
+    'options' => array(
+      array('value' => '1', 'text' => 'One'),
+      array('value' => '2', 'text' => 'Two'),
+    ),
+    'value' => 1,
+    'container' => 'topRight',
+    'required' => TRUE,
+  );
+
+  $questions['B2'] = array(
+    'giftType' => 'all',
+    'type' => 'select',
+    'label' => 'Gift term',
+    // #GEP-67 - Starts here
+    //'condition' => array('giftType', 'bqt', '!='),
+    'conditions' => array(
+      'and' => array(
+        array('giftType', 'bqt', '!='),
+        array('giftType', 'select', '!='),
+      ),
+    ),
+    // #GEP-67 - Ends here
+    // #GEP-11 - Starts
+    /*'options' => array(
+      array('value' => 'a', 'text' => 'Beneficiary Age(s)'),
+      array('value' => 'b', 'text' => 'Beneficiary Birthdate(s)'),
+    ),*/
+    'options' => pgc_giftcalcs_get_term_type_options($org_id),
+    // #GEP-11 - Ends
+    'default_value' => pgc_giftcalcs_get_default_value($org_id, $questions['giftType']['value'], 'term_type', 'q'), 
+    'all_values' => pgc_giftcalcs_get_term_type_defaults($org_id),
+    'wsParam' => 'GiftTerm',
+    'container' => 'topRight',
+    'required' => TRUE,
+  );
+
+  $questions['B3'] = array(
+    'giftType' => 'all',
+    'conditions' => array(
+      'and' => array(
+        array('B2', 'a', '='),
+        array('giftType', 'bqt', '!='),
+        array('giftType', 'select', '!='), #GEP-67
+      ),
+    ),
+    'type' => 'input',
+    'label' => 'Age #1',
+    'wsParam' => 'Age1',
+    'value' => '',
+    'container' => 'topRight',
+    'required' => TRUE,
+  );
+
+  $questions['B4'] = array(
+    'giftType' => 'all',
+    'conditions' => array(
+      'and' => array(
+        array('B1', '2', '='),
+        array('B2', 'a', '='),
+      ),
+    ),
+    'type' => 'input',
+    'label' => 'Age #2',
+    'wsParam' => 'Age2',
+    'value' => '',
+    'container' => 'topRight',
+    'required' => TRUE,
+  );
+
+  $questions['B5'] = array(
+    'giftType' => 'all',
+    'conditions' => array(
+      'and' => array(
+        array('B2', 'b', '='),
+        array('giftType', 'bqt', '!='),
+        array('giftType', 'select', '!='), #GEP-67
+      ),
+    ),
+    'type' => 'input',
+    'label' => 'Birthdate #1',
+    'wsParam' => 'Birthdate1',
+    'value' => '',
+    'container' => 'topRight',
+    'required' => TRUE,
+  );
+
+  $questions['B6'] = array(
+    'giftType' => 'all',
+    'conditions' => array(
+      'and' => array(
+        array('B1', '2', '='),
+        array('B2', 'b', '='),
+      ),
+    ),
+    'type' => 'input',
+    'label' => 'Birthdate #2',
+    'wsParam' => 'Birthdate2',
+    'value' => '',
+    'container' => 'topRight',
+    'required' => TRUE,
+  );
+
+  $questions['B9'] = array(
+    'giftType' => 'all',
+    'type' => 'select',
+    // This is disabled for retained life estate.
+    // #GEP-67 - Starts here
+    //'condition' => array('giftType', 'rle', '!='),
+    'conditions' => array(
+      'and' => array(
+        array('giftType', 'rle', '!='),
+        array('giftType', 'select', '!='),
+      ),
+    ),
+    // #GEP-67 - Ends here
+    'label' => 'Property type',
+    'options' => array(
+      array('value' => 'c', 'text' => 'Cash'),
+      array('value' => 'l', 'text' => 'Long term gain property'),
+    ),
+    'wsParam' => 'PropertyType',
+    'value' => 'c',
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B36'] = array(
+    'giftType' => 'rle',
+    'type' => 'select',
+    'label' => 'Property to be donated',
+    'options' => array(
+      array('value' => 'h', 'text' => 'Home'),
+      array('value' => 'f', 'text' => 'Farm'),
+    ),
+    'value' => 'Home',
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B10'] = array(
+    'giftType' => 'all',
+    'conditions' => array(
+      'or' => array(
+        array('B9', 'l', '='),
+        array('giftType', 'rle', '='),
+      ),
+    ),
+    'type' => 'input',
+    'label' => 'Value of property transferred',
+    'format' => 'dollars',
+    'wsParam' => 'GiftAmount',
+    'value' => '',
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B37'] = array(
+    'giftType' => 'rle',
+    'type' => 'input',
+    'label' => 'Value of building(s) (excl. land)',
+    'format' => 'dollars',
+    'wsParam' => 'BuildingValue',
+    'value' => '',
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B11'] = array(
+    'giftType' => 'all',
+    /* #GEP-51  - Starts here
+    'condition' => array('B9', 'l', '='), */
+    'conditions' => array(
+      'or' => array(
+        array('B9', 'l', '='),
+        array('giftType', 'rle', '='),
+      ),
+    ), #GEP-51  - Ends here
+    'type' => 'input',
+    'label' => 'Cost basis',
+    'format' => 'dollars',
+    'wsParam' => 'CostBasis',
+    'value' => '',
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B12'] = array(
+    'giftType' => 'all',
+    'conditions' => array(
+      'and' => array(
+        array('B9', 'l', '!='),
+        array('giftType', 'rle', '!='),
+        array('giftType', 'select', '!='), #GEP-67
+      ),
+    ),
+    'type' => 'input',
+    'label' => 'Amount of cash transferred',
+    'format' => 'dollars',
+    'wsParam' => 'GiftAmount',
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['giftDate'] = array(
+    'giftType' => 'all',
+     //'condition' => array('giftType', 'bqt', '!='),
+    'conditions' => array(
+      'and' => array(
+        array('giftType', 'bqt', '!='),
+        array('giftType', 'select', '!='),
+      ),
+    ),
+    // #GEP-67 - Ends here    
+    'type' => 'input',
+    'label' => 'Gift date',
+    'format' => 'date',
+    'wsParam' => 'GiftDate',
+    'value' => date('m/d/Y'),
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B13'] = array(
+    'giftType' => 'crut',
+    'type' => 'input',
+    'label' => 'Payment rate (%)',
+    'wsParam' => 'PaymentRate',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'crut', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B15'] = array(
+    'giftType' => 'crut',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'crut', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B16'] = array(
+    'giftType' => 'crut',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'crut', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B17'] = array(
+    'giftType' => 'crat',
+    'type' => 'input',
+    'label' => 'Payment rate (%)',
+    'wsParam' => 'PaymentRate',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'crat', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B18'] = array(
+    'giftType' => 'crat',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'crat', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B19'] = array(
+    'giftType' => 'crat',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'crat', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B20'] = array(
+    'giftType' => 'pif',
+    'type' => 'hidden',
+    'wsParam' => 'HighestReturnOfLast3Years',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif', 'highest_3_yr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B21'] = array(
+    'giftType' => 'pif',
+    'type' => 'hidden',
+    'wsParam' => 'CurrentPayoutRateToQuote',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+  
+  /* #GEP-13 - starts */
+  
+  $questions['B202'] = array(
+    'giftType' => 'pif2',
+    'type' => 'hidden',
+    'wsParam' => 'HighestReturnOfLast3Years',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif2', 'highest_3_yr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B212'] = array(
+    'giftType' => 'pif2',
+    'type' => 'hidden',
+    'wsParam' => 'CurrentPayoutRateToQuote',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif2', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+  
+  $questions['B203'] = array(
+    'giftType' => 'pif3',
+    'type' => 'hidden',
+    'wsParam' => 'HighestReturnOfLast3Years',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif3', 'highest_3_yr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B213'] = array(
+    'giftType' => 'pif3',
+    'type' => 'hidden',
+    'wsParam' => 'CurrentPayoutRateToQuote',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif3', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+  
+  $questions['B204'] = array(
+    'giftType' => 'pif4',
+    'type' => 'hidden',
+    'wsParam' => 'HighestReturnOfLast3Years',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif4', 'highest_3_yr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B214'] = array(
+    'giftType' => 'pif4',
+    'type' => 'hidden',
+    'wsParam' => 'CurrentPayoutRateToQuote',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif4', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+  
+  $questions['B205'] = array(
+    'giftType' => 'pif5',
+    'type' => 'hidden',
+    'wsParam' => 'HighestReturnOfLast3Years',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif5', 'highest_3_yr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B215'] = array(
+    'giftType' => 'pif5',
+    'type' => 'hidden',
+    'wsParam' => 'CurrentPayoutRateToQuote',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'pif5', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+  
+  /* #GEP-13 - ends */
+
+  $questions['B23'] = array(
+    'giftType' => 'ga',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'ga', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B24'] = array(
+    'giftType' => 'ga',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'ga', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B25'] = array(
+    'giftType' => 'ga',
+    'type' => 'select',
+    'conditions' => array(
+      'and' => array(
+        array('B9', 'l', '='),
+        array('B1', '1', '='),
+      ),
+    ),
+    'label' => 'Donor/beneficiary relationship',
+    'options' => array(
+      array('value' => 'o', 'text' => 'Donor is the beneficiary'),
+      array('value' => 'n', 'text' => 'Donor is not the beneficiary'),
+    ),
+    'value' => 'o',
+    'wsParam' => 'DonorBeneficiary',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B25b'] = array(
+    'giftType' => 'ga',
+    'type' => 'select',
+    'conditions' => array(
+      'and' => array(
+        array('B9', 'l', '='),
+        array('B1', '2', '='),
+      ),
+    ),
+    'label' => 'Donor/beneficiary relationship',
+    'options' => array(
+      array('value' => 'f', 'text' => 'Donor #1 is the first beneficiary'),
+      array('value' => 's', 'text' => 'Donor #2 is the first beneficiary'),
+      array('value' => 'b', 'text' => 'Joint donors are joint beneficiaries'),
+      array('value' => 'x', 'text' => 'Donor is not the first beneficiary'),
+    ),
+    'value' => 'f',
+    'wsParam' => 'DonorBeneficiary',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B31'] = array(
+    'giftType' => 'dga',
+    'type' => 'input',
+    'label' => 'Date of first payment',
+    'format' => 'date',
+    'wsParam' => 'FirstPaymentDate',
+    'value' => pgc_giftcalcs_get_dga_payment_date($org_id),
+    'container' => 'topLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B32'] = array(
+    'giftType' => 'dga',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'dga', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B33'] = array(
+    'giftType' => 'dga',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'ga', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B35'] = array(
+    'giftType' => 'dga',
+    'type' => 'select',
+    'conditions' => array(
+      'and' => array(
+        array('B9', 'l', '='),
+        array('B1', '1', '='),
+      ),
+    ),
+    'label' => 'Donor/beneficiary relationship',
+    'options' => array(
+      array('value' => 'o', 'text' => 'Donor is the beneficiary'),
+      array('value' => 'n', 'text' => 'Donor is not the beneficiary'),
+    ),
+    'value' => 'o',
+    'wsParam' => 'DonorBeneficiary',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B35b'] = array(
+    'giftType' => 'dga',
+    'type' => 'select',
+    'conditions' => array(
+      'and' => array(
+        array('B9', 'l', '='),
+        array('B1', '2', '='),
+      ),
+    ),
+    'label' => 'Donor/beneficiary relationship',
+    'options' => array(
+      array('value' => 'f', 'text' => 'Donor #1 is the first beneficiary'),
+      array('value' => 's', 'text' => 'Donor #2 is the first beneficiary'),
+      array('value' => 'b', 'text' => 'Joint donors are joint beneficiaries'),
+      array('value' => 'x', 'text' => 'Donor is not the first beneficiary'),
+    ),
+    'value' => 'f',
+    'wsParam' => 'DonorBeneficiary',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['TermLength'] = array(
+    'giftType' => 'all',
+    'type' => 'input',
+    'conditions' => array(
+      'or' => array(
+        array('giftType', 'crat', '='),
+        array('giftType', 'crut', '='),
+        array('giftType', 'clat', '='),
+        array('giftType', 'clut', '='),
+        array('giftType', 'cfu', '='),
+        array('giftType', 'rle', '='),
+      ),
+      'and' => array(
+        array('B2', 'f', '='),
+      ),
+    ),
+    'label' => 'Years in term',
+    'value' => '20',
+    'wsParam' => 'TermLength',
+    'container' => 'bottomRight',
+    'required' => TRUE,
+  );
+
+  $questions['B42'] = array(
+    'giftType' => 'clut',
+    'type' => 'input',
+    'label' => 'Payment rate (%)',
+    'wsParam' => 'PaymentRate',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'clut', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B40'] = array(
+    'giftType' => 'clut',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'clut', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B41'] = array(
+    'giftType' => 'clut',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'clut', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B45'] = array(
+    'giftType' => 'clat',
+    'type' => 'input',
+    'label' => 'Payment rate (%)',
+    'wsParam' => 'PaymentRate',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'clat', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B43'] = array(
+    'giftType' => 'clat',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'clat', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B44'] = array(
+    'giftType' => 'clat',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'clat', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B60'] = array(
+    'giftType' => 'cfu',
+    'type' => 'input',
+    'label' => 'Payment rate (%)',
+    'wsParam' => 'PaymentRate',
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'cfu', 'default_pr_new', 5),
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B61'] = array(
+    'giftType' => 'cfu',
+    'type' => $include_pay_freq ? 'select' : 'hidden',
+    'label' => 'Payment frequency',
+    'options' => array(
+      array('value' => 'a', 'text' => 'Annual'),
+      array('value' => 's', 'text' => 'Semiannual'),
+      array('value' => 'q', 'text' => 'Quarterly'),
+      array('value' => 'm', 'text' => 'Monthly'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'cfu', 'pay_frequency', 'q'),
+    'wsParam' => 'PayoutFrequency',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['B62'] = array(
+    'giftType' => 'cfu',
+    'type' => $include_pay_timing ? 'select' : 'hidden',
+    'label' => 'Payment timing',
+    'options' => array(
+      array('value' => 'b', 'text' => 'Beginning of period'),
+      array('value' => 'e', 'text' => 'End of period'),
+    ),
+    'value' => pgc_giftcalcs_get_default_value($org_id, 'cfu', 'pay_timing', 'e'),
+    'wsParam' => 'PayoutTiming',
+    'container' => 'bottomLeft',
+    'required' => TRUE,
+  );
+
+  $questions['WSGUID'] = array(
+    'giftType' => 'all',
+    'type' => 'hidden',
+    'condition' => array('giftType', 'select', '!='), #GEP-67
+    'value' => pgc_giftcalcs_get_profile_value($org_id, 'field_wsguid', 'org'),
+    'wsParam' => 'WSGUID',
+    'required' => TRUE,
+  );
+
+  $name_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_name', 'org');
+  if ($name_setting == 'Optional' || $name_setting == 'Required') {
+    $required = $name_setting == 'Optional' ? FALSE : TRUE;
+    $questions['firstname'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'First name',
+      'wsParam' => 'contact_DonorFirstName',
+      'value' => '',
+      'container' => 'contactLeft',
+      'required' => $required,
+    );
+
+    $questions['lastname'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'Last name',
+      'wsParam' => 'contact_DonorLastName',
+      'value' => '',
+      'container' => 'contactLeft',
+      'required' => $required,
+    );
+  }
+
+  $address_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_address', 'org');
+  if ($address_setting == 'Optional' || $address_setting == 'Required') {
+    $required = $address_setting == 'Optional' ? FALSE : TRUE;
+    $questions['address1'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'Address 1',
+      'wsParam' => 'contact_DonorAddr1',
+      'value' => '',
+      'container' => 'contactRight',
+      'required' => $required,
+    );
+
+    $questions['address2'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'Address 2',
+      'wsParam' => 'contact_DonorAddr2',
+      'value' => '',
+      'container' => 'contactRight',
+      // #GEP-23 - Starts here
+      //'required' => $required,
+      'required' => FALSE,
+      // #GEP-23 - Ends here
+    );
+
+    $questions['city'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'City',
+      'wsParam' => 'contact_DonorCity',
+      'value' => '',
+      'container' => 'contactRight',
+      'required' => $required,
+    );
+
+    $questions['state'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'State',
+      'wsParam' => 'contact_DonorState',
+      'value' => '',
+      'container' => 'contactRight',
+      'required' => $required,
+    );
+
+    $questions['zip'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'Zip',
+      'wsParam' => 'contact_DonorZIP',
+      'value' => '',
+      'container' => 'contactRight',
+      'required' => $required,
+    );
+  }
+
+  $phone_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_phone', 'org');
+  if ($phone_setting == 'Optional' || $phone_setting == 'Required') {
+    $required = $phone_setting == 'Optional' ? FALSE : TRUE;
+    $questions['phone'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'Telephone',
+      'wsParam' => 'contact_DonorPhone',
+      'value' => '',
+      'container' => 'contactLeft',
+      'required' => $required,
+    );
+  }
+
+  $email_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_email', 'org');
+  if ($email_setting == 'Optional' || $email_setting == 'Required') {
+    $required = $email_setting == 'Optional' ? FALSE : TRUE;
+
+    $questions['email'] = array(
+      'giftType' => 'all',
+      'type' => 'input',
+      'label' => 'Email',
+      'wsParam' => 'contact_DonorEmail',
+      'value' => '',
+      'container' => 'contactLeft',
+      'required' => $required,
+    );
+  }
+
+  // #GEP-1 - Starts 
+  $contactme_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_contactme_display', 'org');
+  if ($contactme_setting > 0) { // #GEP-74 - changed as per ticket
+  	$contactme_label = pgc_giftcalcs_get_profile_value($org_id, 'field_di_contactme_label', 'org');
+	if($contactme_label==''){
+	  $contactme_label = 'Contact Me';
+	}
+	
+	// #GEP-74 - Starts here
+	$showmessageoptions = 0;
+	$checkboxchecked = '';
+	if($contactme_setting == 2){
+	  $showmessageoptions = 1;
+	  $checkboxchecked = 'checked';
+	}
+	// #GEP-74 - Ends here
+    $questions['contactdonor'] = array(
+      'giftType' => 'all',
+      'type' => 'checkbox',
+      'label' => $contactme_label,
+      'wsParam' => 'contact_ContactDonor',
+      'value' => $showmessageoptions, // #GEP-74
+      'checked' => $checkboxchecked,  // #GEP-74
+      'container' => 'contactLeft',
+      'required' => FALSE,
+    );	
+	
+	$questions['contacttype'] = array(
+      'giftType' => 'all',
+      'type' => 'select',
+      'label' => 'Please contact me by',
+      'condition' => array('contactdonor', '1', '='),
+      'wsParam' => 'contact_ContactType',
+      'options' => array(
+        array('value' => 'email', 'text' => 'Email'),
+        array('value' => 'phone', 'text' => 'Phone'),
+      ),
+      'value' => 'email',
+      'container' => 'contactLeft',
+      'required' => FALSE,
+    );
+	
+	$questions['contactmessage'] = array(
+      'giftType' => 'all',
+      'type' => 'textarea',
+      'label' => 'Optional message',
+      'condition' => array('contactdonor', '1', '='),
+      'wsParam' => 'contact_ContactMessage',
+      'container' => 'contactLeft',
+      'required' => FALSE,
+    );
+  }
+  // #GEP-1 - Ends Here
+
+  return $questions;
+}
+
+/**
+ * Returns the validation rules for an organization.
+ *
+ * These rules are keyed off of the Web Services parameter id instead
+ * of the form field id, because some parameters are used by more
+ * than one field.
+ *
+ * @param string $org_id
+ *   organization ID
+ *
+ * @return array
+ *   an array of rules:  $rules[$gift_type][$field][$rule_name] = $data means
+ *   that the validate method in giftcalcs.js will test $field against $data
+ *   using the logic under $rule_name when validating the form for $gift_type.
+ *
+ * @see pgc_giftcalcs_js_compiler()
+ */
+function pgc_giftcalcs_get_validation_rules($org_id) {
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+  $org_profile = profile2_load_by_user($org_id, 'org');
+  $rules = array();
+  $phone_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_phone', 'org');
+  $email_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_email', 'org');
+  $address_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_address', 'org');
+  $name_setting = pgc_giftcalcs_get_profile_value($org_id, 'field_di_name', 'org');
+
+  foreach (pgc_appserver_gift_type_abbr_list() as $gift_type) {
+    if (isset($profile->{'field_' . $gift_type . '_min_gift'}['und'])) {
+      $rules[$gift_type]['GiftAmount']['float_min'] = $profile->{'field_' . $gift_type . '_min_gift'}['und'][0]['value'];
+    }
+
+    if (isset($profile->{'field_' . $gift_type . '_max_gift'}['und'])) {
+      $rules[$gift_type]['GiftAmount']['float_max'] = $profile->{'field_' . $gift_type . '_max_gift'}['und'][0]['value'];
+    }
+
+    // There is special processing for Deferred Gift Annuities under the
+    // date_min and date_max cases of the validate method.
+    if ($gift_type == 'dga' && isset($profile->{'field_dga_min_def_age'}['und'])) {
+      $rules[$gift_type]['FirstPaymentDate']['min_def_age']
+        = $profile->{'field_dga_min_def_age'}['und'][0]['value'];
+    }
+    if ($gift_type == 'dga' && isset($profile->{'field_dga_max_def_age'}['und'])) {
+      $rules[$gift_type]['FirstPaymentDate']['max_def_age']
+        = $profile->{'field_dga_max_def_age'}['und'][0]['value'];
+    }
+
+    // Minimum bebeficiary age.
+    if (isset($profile->{'field_' . $gift_type . '_min_ben_age'}['und'])) {
+      $min_age = $profile->{'field_' . $gift_type . '_min_ben_age'}['und'][0]['value'];
+      $rules[$gift_type]['Birthdate1']['birthdate_act_age_min']
+        = $rules[$gift_type]['Birthdate2']['birthdate_act_age_min']
+        = $rules[$gift_type]['Age1']['age_min']
+        = $rules[$gift_type]['Age2']['age_min']
+        = $min_age;
+    }
+
+    // Maximum bebeficiary age.
+    if (isset($profile->{'field_' . $gift_type . '_max_ben_age'}['und'])) {
+      $max_age = $profile->{'field_' . $gift_type . '_max_ben_age'}['und'][0]['value'];
+      $rules[$gift_type]['Birthdate1']['birthdate_act_age_max']
+        = $rules[$gift_type]['Birthdate2']['birthdate_act_age_max']
+        = $rules[$gift_type]['Age1']['age_max']
+        = $rules[$gift_type]['Age2']['age_max'] = $max_age;
+    }
+
+    if (isset($profile->{'field_' . $gift_type . '_min_pr'}['und'])) {
+      $min_pr = $profile->{'field_' . $gift_type . '_min_pr'}['und'][0]['value'];
+      $rules[$gift_type]['PaymentRate']['float_min'] = $min_pr;
+    }
+
+    if (isset($profile->{'field_' . $gift_type . '_max_pr'}['und'])) {
+      $max_pr = $profile->{'field_' . $gift_type . '_max_pr'}['und'][0]['value'];
+      $rules[$gift_type]['PaymentRate']['float_max'] = $max_pr;
+    }
+
+    if (in_array($gift_type, array('crat', 'crut', 'cfu'))) {
+      $rules[$gift_type]['TermLength']['gift_term'] = '20';
+    }
+
+    $rules[$gift_type]['CostBasis']['costbasis'] = 1;
+    $rules[$gift_type]['GiftDate']['dateformat'] = 1;
+
+    // Bit of a kludge here, validation was built specifically around
+    // validation rules per gift type, and "required" fields were only
+    // necessary once we added contact info - so I have to add it to
+    // each contact field for each gift type.
+    if ($phone_setting == 'Required') {
+      $rules[$gift_type]['contact_DonorPhone']['required'] = 1;
+    }
+
+    if ($name_setting == 'Required') {
+      $rules[$gift_type]['contact_DonorFirstName']['required'] = 1;
+      $rules[$gift_type]['contact_DonorLastName']['required'] = 1;
+    }
+
+    if ($address_setting == 'Required') {
+      $rules[$gift_type]['contact_DonorAddr1']['required'] = 1;
+       // #GEP-23 - Starts here
+      //$rules[$gift_type]['contact_DonorAddr2']['required'] = 1;
+	  // #GEP-23 - Ends here
+      $rules[$gift_type]['contact_DonorCity']['required'] = 1;
+      $rules[$gift_type]['contact_DonorState']['required'] = 1;
+      $rules[$gift_type]['contact_DonorZIP']['required'] = 1;
+    }
+
+    if ($email_setting == 'Required') {
+      $rules[$gift_type]['contact_DonorEmail']['required'] = 1;
+    }
+
+    if ($phone_setting == 'Required') {
+      $rules[$gift_type]['contact_DonorPhone']['required'] = 1;
+    }
+  }
+
+  $rules['rle']['BuildingValue']['buildingvalue'] = 1;
+
+  return $rules;
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_get_default_value($org_id, $gift_type, $field, $default) {
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+  if (isset($profile->{'field_' . $gift_type . '_' . $field}['und'])) {
+    return $profile->{'field_' . $gift_type . '_' . $field}['und'][0]['value'];
+  }
+  else {
+    return $default;
+  }
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_get_gc_config_value($org_id, $setting, $default = '') {
+  $profile = profile2_load_by_user($org_id, 'giftcalcs');
+  if (isset($profile->{'field_gc_config_' . $setting}['und'])) {
+    return $profile->{'field_gc_config_' . $setting}['und'][0]['value'];
+  }
+  else {
+    return $default;
+  }
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_get_profile_value($org_id, $field, $profile_type, $default = '') {
+  $profile = profile2_load_by_user($org_id, $profile_type);
+  if (isset($profile->{$field}['und'])) {
+    return $profile->{$field}['und'][0]['value'];
+  }
+  else {
+    return $default;
+  }
+}
+
+/**
+ * Find the gift-type labels.
+ *
+ * @param int $org_id
+ *   The organization ID a.k.a. user ID of a giftcalcs user.
+ * @param bool $include_assets
+ *   Include asset types as well as gift types. Defaults to FALSE.
+ *
+ * @return array
+ *   Keys are gift-type abbreviations, values are the configured labels or '' if
+ *   not configured.
+ */
+function pgc_giftcalcs_get_gifttype_labels($org_id, $include_assets = FALSE) {
+  $labels = array();
+  foreach (pgc_appserver_gift_type_abbr_list() as $abbr) {
+    $labels[$abbr] = pgc_giftcalcs_get_default_value($org_id, $abbr, 'label', '');
+    if ($include_assets && empty($labels[$abbr])) {
+      $labels[$abbr] = pgc_giftcalcs_get_default_value($org_id, $abbr, 'gift_type_label', '');
+    }
+  }
+
+  return $labels;
+}
+
+/**
+ * Calculate default date of first payment for Deferred Gift Annuity.
+ *
+ * This default appears in the GiftCalcs diagram if the user selects DGA. The
+ * logic is specified in PGCS-63.
+ */
+function pgc_giftcalcs_get_dga_payment_date($org_id) {
+  $default_deferral = (int) pgc_giftcalcs_get_default_value($org_id, 'dga', 'default_deferral', 5);
+  $current_year = (int) date('Y');
+  $payment_year = $current_year + $default_deferral;
+  $payment_date = "12/31/$payment_year";
+  return $payment_date;
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_get_gift_descriptions($org_id) {
+  $details = array();
+  foreach (pgc_appserver_gift_type_abbr_list() as $abbr) {
+    $details[$abbr] = nl2br(pgc_giftcalcs_get_default_value($org_id, $abbr, 'description', NULL));
+  }
+
+  return $details;
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_get_general_settings($org_id) {
+  $general_settings = array();
+  $profile = profile2_load_by_user($org_id, 'giftcalcs');
+
+  if(!empty($profile)){ // Added if condition for #PGCS-929
+  	foreach ($profile as $id => $val) {
+      if (strpos($id, 'field_gc_config') === 0) {
+        if (isset($val['und'])) {
+          if (count($val['und']) == 1) {
+            $general_settings[substr($id, 16)] = $val['und'][0]['value'];
+          }
+          else {
+            foreach ($val['und'] as $k => $v) {
+              $general_settings[substr($id, 16)][$k] = $v['value'];
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return $general_settings;
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_get_irs_discount_rates($org_id) {
+  $discount_rates = array();
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+
+  foreach ($profile as $id => $val) {
+    if (strpos($id, '_dr')) {
+      if (isset($val['und'])) {
+        $gift_type = explode('_', $id);
+        $gift_type = $gift_type[1];
+        $discount_rates[$gift_type] = $val['und'][0]['value'];
+      }
+    }
+  }
+
+  return $discount_rates;
+}
+
+/**
+ * Get configured Term Type defaults.
+ *
+ * @param int $org_id
+ *   The user ID (uid) a.k.a. organization ID.
+ *
+ * @return array
+ *   keys are gift type abbreviations, values are configured defaults.
+ */
+function pgc_giftcalcs_get_term_type_defaults($org_id) {
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+  $values = array();
+  
+  //#GEP-11 - starts Bill's comment on Jan 13, 2017, point 1
+  $allow_birthdates = TRUE;
+  $profile_giftcalcs = profile2_load_by_user($org_id, 'giftcalcs');
+  if(!empty($profile_giftcalcs->field_gc_config_allow_birthdates) && $profile_giftcalcs->field_gc_config_allow_birthdates['und'][0]['value']==1){
+    $allow_birthdates = FALSE;
+  }
+  //#GEP-11 - ends
+  
+  foreach (pgc_appserver_gift_type_abbr_list() as $abbr) {
+    $field = 'field_' . $abbr . '_term_type';
+    if (isset($profile->$field)) {
+      //#GEP-11 - starts Bill's comment on Jan 13, 2017, point 1
+      //$values[$abbr] = $profile->{$field}[LANGUAGE_NONE][0];
+      if(!empty($profile->{$field}[LANGUAGE_NONE])){
+        $term_type = $profile->{$field}[LANGUAGE_NONE][0];
+	    if($allow_birthdates){
+	      $values[$abbr] = $term_type;
+	    }else{
+	  	  if($term_type['value']=='b'){
+	  	    $values[$abbr] = array('value'=>'a');		
+	  	    //$values[$abbr] = $term_type;		
+	  	  }else{
+	  	    $values[$abbr] = $term_type;		
+	      }
+	    }	
+      }
+      
+	  //#GEP-11 - ends
+    }
+  }
+  return $values;
+}
+
+
+/** #GEP-11
+ * Get configured Term Type options.
+ *
+ * @param int $org_id
+ *   The user ID (uid) a.k.a. organization ID.
+ *
+ * @return array gift term type
+ *   
+ */
+function pgc_giftcalcs_get_term_type_options($org_id) {
+  $profile = profile2_load_by_user($org_id, 'giftcalcs');
+  $values = array();
+  
+  
+  if(!empty($profile->field_gc_config_allow_birthdates)){
+	if($profile->field_gc_config_allow_birthdates['und'][0]['value']==1){
+	  $values = array(
+        array('value' => 'a', 'text' => 'Beneficiary age(s)'),
+      );
+	}else{
+	  $values = array(
+        array('value' => 'a', 'text' => 'Beneficiary age(s)'),
+        array('value' => 'b', 'text' => 'Beneficiary birthdate(s)'),
+      );	
+	}
+  }else{
+    $values = array(
+      array('value' => 'a', 'text' => 'Beneficiary age(s)'),
+      array('value' => 'b', 'text' => 'Beneficiary birthdate(s)'),
+    );
+  }
+
+  return $values;
+}
+
+
+/**
+ * This pieces together replacement strings from various configuration options.
+ *
+ * @param string $org_id
+ *   organization ID
+ *
+ * @return array
+ *   an array of strings
+ */
+function pgc_giftcalcs_get_strings($org_id) {
+  $strings = array();
+
+  $profile = profile2_load_by_user($org_id, 'org');
+
+  if (isset($profile->field_org_name['und'])) {
+    $strings['charity_name'] = $profile->field_org_name['und'][0]['value'];
+  }
+
+  if (isset($profile->field_org_nickname['und'])) {
+    $strings['charity_nickname'] = $profile->field_org_nickname['und'][0]['value'];
+  }
+  else {
+    $strings['charity_nickname'] = $profile->field_org_name['und'][0]['value'];
+  }
+  
+  // #GEP-8
+  if (isset($profile->field_org_nickname_diagram['und'])) {
+  	$strings['charity_nickname_diagram'] = $profile->field_org_nickname_diagram['und'][0]['value'];
+  }
+  else if (isset($profile->field_org_nickname['und'])) {
+    $strings['charity_nickname_diagram'] = $profile->field_org_nickname['und'][0]['value'];
+  }
+  else {
+    $strings['charity_nickname_diagram'] = $profile->field_org_name['und'][0]['value'];
+  }
+
+  return $strings;
+}
+
+/**
+ * Fetch the selected notes.
+ *
+ * @see pgc_giftcalcs_get_note_values()
+ */
+function pgc_giftcalcs_get_notes($org_id) {
+  $note_values = pgc_giftcalcs_get_note_values();
+  $notes = array();
+  $profile = profile2_load_by_user($org_id, 'giftcalcs');
+
+  for ($i = 1; $i <= 4; $i++) {
+    if (isset($profile->{'field_gc_note_' . $i}['und']) && $profile->{'field_gc_note_' . $i}['und'][0]['value']) {
+      $notes[$i - 1] = $note_values[$i];
+    }
+    else {
+      $notes[$i - 1] = FALSE;
+    }
+  }
+
+  return $notes;
+}
+
+/**
+ * Notes added to the gift calculator.
+ *
+ * These notes appear as options on the GiftCalcs configuration screen, e.g.,
+ * /user/28/edit/giftcalcs .  If selected, then the notes will appear in the
+ * gift calculator once the user has customized it.
+ */
+function pgc_giftcalcs_get_note_values() {
+  $notes = array();
+  $notes[1] = 'If you are contributing short-term gain or other ordinary income property, your deduction may be reduced.';
+  $notes[2] = 'Total payments in the year of gift will depend on the timing of your gift.';
+  $notes[3] = 'You can enhance your deduction and increase your payment by deferring your annuity.';
+  $notes[4] = 'If you reside in New York or New Jersey, the annuity amount may be less than the amount shown above.';
+
+  return $notes;
+}
+
+/**
+ * Implements hook_profile2_insert().
+ *
+ * Creates a Web Services account when a new user is created.
+ */
+function pgc_giftcalcs_profile2_presave($profile) {
+  if ($profile->type == 'org') {
+    $user = user_load($profile->uid);
+    $params = new stdClass();
+    $params->WSGUID = isset($profile->field_wsguid['und'][0]) ? $profile->field_wsguid['und'][0]['value'] : "";
+    $params->ClientEmail = $user->mail;
+    $params->ClientName = $profile->field_org_name['und'][0]['value'];
+    $params->DrupalID = $user->uid;
+    $params->UniqueID = $user->uid;
+
+    $url = pgc_appserver_webservice_urls('clientUpdate');
+    $resp = drupal_http_request($url, array(
+      'method' => 'POST',
+      'data' => json_encode($params),
+      'headers' => array('Content-Type' => 'text'),
+    ));
+
+    $updated = FALSE;
+    if ($resp->code == 200 && json_decode($resp->data)) {
+      $data = json_decode($resp->data);
+      if ($data->ErrorCode == 0 || $data->Status == 'Update not implemented') {
+        $profile->field_wsguid['und'][0]['value'] = $data->WSGUID;
+        $updated = TRUE;
+      }
+    }
+    if (!$updated) {
+      drupal_set_message(
+          'Unable to create/update Web Services account.
+         You may try again by re-saving the org profile.
+         If the issue persists, please contact the web services team.', 'error'
+      );
+    }
+
+    if (!isset($profile->field_app_id['und'][0]) || !strlen($profile->field_app_id['und'][0]['value'])) {
+      $app_id = pgc_giftcalcs_generate_app_id();
+      $profile->field_app_id['und'][0]['value'] = $app_id;
+    }
+  }
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_generate_app_id() {
+  // Generate a random string.
+  $rand_string = pgc_giftcalcs_random_string();
+  // Make sure it's not already in use.
+  $result = db_select('field_data_field_app_id', 'f')
+      ->fields('f', array('field_app_id_value'))
+      ->condition('field_app_id_value', $rand_string, '=')
+      ->execute();
+
+  if ($result->rowCount()) {
+    return pgc_giftcalcs_generate_app_id();
+  }
+  else {
+    return $rand_string;
+  }
+}
+
+/**
+ * Documentation needed.
+ */
+function pgc_giftcalcs_random_string($length = 8, $charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
+  $str = '';
+  $count = strlen($charset);
+  while ($length--) {
+    $str .= $charset[mt_rand(0, $count - 1)];
+  }
+  return $str;
+}
+
+/** #GEP-4 - starts - Get Default Diagram gift type for current user
+ * 
+ */
+function pgc_giftcalcs_get_default_gift_type($uid){
+	
+  $all_gift_enable_query = db_select("profile", "p");
+  $all_gift_enable_query->join('field_data_field_all_enabled', 'ae', 'p.pid = ae.entity_id');
+  $all_gift_enable_query->fields("ae", array('field_all_enabled_value'));
+  $all_gift_enable_query->condition('p.uid',$uid);
+	
+  $all_gift_enable = $all_gift_enable_query->execute()->fetchField();
+  
+  if($all_gift_enable){
+    $all_gift_type_query = db_select("profile", "p");
+    $all_gift_type_query->join('field_data_field_all_default_diagram', 'dd', 'p.pid = dd.entity_id');
+    $all_gift_type_query->fields("dd", array('field_all_default_diagram_value'));
+    $all_gift_type_query->condition('p.uid',$uid);
+  
+    $field_all_gift_type = $all_gift_type_query->execute()->fetchField();
+  
+    if($field_all_gift_type!=''){
+  	  if($field_all_gift_type=='all'){
+  	    $gift_type = 'none';
+  	  }else{
+  	    $gift_type = $field_all_gift_type;
+  	  }		  	
+    }else{
+  	  $gift_type = 'none';
+    }		
+  }else{
+  	$excluded_types = array('bqt');
+  	$gift_types = array_diff(pgc_appserver_get_enabled_gift_abbrs($uid), $excluded_types);
+    // There should always be a reasonable value. Supply a default just in case.
+    $gift_type = $gift_types ? current($gift_types) : 'ga';
+  }
+  return $gift_type;
+}
+
+// #GEP-4 - ends
+
+// #GEP-15 - starts
+function pgc_giftcalcs_get_show_min_field($org_id){
+  $output = FALSE;
+  $profile = profile2_load_by_user($org_id, 'giftcalcs');
+  if (isset($profile->field_gc_config_show_min['und'])) {
+	if($profile->field_gc_config_show_min['und'][0]['value']==1){
+	  $output = TRUE;	
+	}
+  }
+  return $output;
+}
+
+function pgc_giftcalcs_get_placeholder($org_id){
+  $placeholder = '';
+  if(pgc_giftcalcs_get_show_min_field($org_id)){  	
+	$enabled_gifts = pgc_appserver_get_enabled_gift_keys($org_id);
+	$placeholder_array = array();
+	foreach($enabled_gifts as $gift_type){
+	  if($gift_type!=='all'){
+	    $min_gift = pgc_giftcalcs_get_default_value($org_id, $gift_type, 'min_gift', 1000);
+	    $min_gift = "minimum of $".number_format(round($min_gift, 2));
+		
+		$min_age = pgc_giftcalcs_get_default_value($org_id, $gift_type, 'min_ben_age', 60);
+		$min_age = "minimum of ".$min_age;
+		
+		$placeholder_array[$gift_type] = array('min_gift'=>$min_gift, 'min_age' => $min_age);
+	  }
+	} 
+	$placeholder = $placeholder_array;	
+  }  
+  return $placeholder; 	
+}
+// #GEP-15 - ends
+
+// #GEP-24 - starts
+function pgc_giftcalcs_gift_type_order($org_id){
+	
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+  $gift_type_enabled_keys = pgc_appserver_get_enabled_gift_abbrs($org_id);
+  
+  //echo "<pre>"; print_r($gift_type_enabled_keys);
+  
+  // #GEP-68 - Starts here
+  
+  $include_bqt = pgc_giftcalcs_get_default_value($org_id, 'bqt', 'in_gifttype_menu', 0);
+  
+  //echo $include_bqt; die;
+  if($include_bqt==0){
+    $gift_type_enabled_keys = array_flip($gift_type_enabled_keys);
+    unset($gift_type_enabled_keys['bqt']);
+    $gift_type_enabled_keys = array_values(array_flip($gift_type_enabled_keys));  
+    //echo "<pre>"; print_r($gift_type_enabled_keys);
+  }  
+  // #GEP-68 - Ends here
+  
+  $generat_settings = pgc_giftcalcs_get_general_settings($org_id);
+  
+  //echo "<pre>"; print_r($generat_settings); 
+  
+  
+  
+  $gift_type_order = array();
+  if(!empty($generat_settings['gifttype_order'])){
+  	
+	if(is_array($generat_settings['gifttype_order'])){
+	  $gift_type_order_setting = $generat_settings['gifttype_order'];	
+	}else{
+	  $gift_type_order_setting = array(0=>$generat_settings['gifttype_order']);	
+	}
+	
+	
+	foreach($gift_type_enabled_keys as $value){
+	  if(!in_array($value, $gift_type_order_setting)){
+	    $gift_type_order_setting[] = $value;	
+	  }
+	}
+	
+	// #GEP-68 - Starts here
+	if($include_bqt==0){
+      $gift_type_order_setting = array_flip($gift_type_order_setting);
+      unset($gift_type_order_setting['bqt']);
+      $gift_type_order_setting = array_values(array_flip($gift_type_order_setting)); 
+	}   
+	// #GEP-68 - Ends here
+    
+	$i=0;
+	foreach ($gift_type_order_setting as $gift_type) {
+	  if($gift_type!='all'){
+	    if (isset($profile->{'field_' . $gift_type . '_enabled'}['und'])) {
+	      if ($profile->{'field_' . $gift_type . '_enabled'}['und'][0]['value'] == 1) {
+	        $label = "field_{$gift_type}_label";
+		    if(!empty($profile->{$label})){
+	          $gift = array(
+	            'value' => $gift_type,
+	            'text' => $profile->{$label}['und'][0]['value'],
+	          );
+	          $gift_type_order[] = $gift;
+	          $i++;
+		    }
+	      }
+	    }	
+	  }	  
+	}	
+  }else{
+  	$n=0;
+	foreach($gift_type_enabled_keys as $gift_type){
+	  if($gift_type!='all'){
+	    if (isset($profile->{'field_' . $gift_type . '_enabled'}['und'])) {
+	      if ($profile->{'field_' . $gift_type . '_enabled'}['und'][0]['value'] == 1) {
+	        $label = "field_{$gift_type}_label";
+		    if(!empty($profile->{$label})){
+		      $gift = array(
+	            'value' => $gift_type,
+	            'text' => $profile->{$label}['und'][0]['value'],
+	          );
+	          $gift_type_order[] = $gift;
+	          $n++;	
+		    }	      
+	      }
+	    }		
+	  }	  
+	}
+  }	
+  
+  return $gift_type_order;
+}
+// #GEP-24 - ends

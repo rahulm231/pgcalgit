@@ -1,0 +1,9 @@
+/* Make the thumbnails in the media browser more like they looked in previous
+ * versions of the Media module.
+ */
+.media-item .label-wrapper label {
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,57 @@
+site_ingestor.ingest_form_1:
+  path: /admin/site-ingestor/ingest
+  defaults:
+    _title: 'Ingest New Theme'
+    _form: \Drupal\site_ingestor\Form\SiteIngestorIngestForm_1
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.ingest_form_2:
+  path: /admin/site-ingestor/ingest/2
+  defaults:
+    _title: 'Ingest New Theme - Step 2'
+    _form: \Drupal\site_ingestor\Form\SiteIngestorIngestForm_2
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.ingest_form_3:
+  path: /admin/site-ingestor/ingest/3
+  defaults:
+    _title: 'Ingest New Theme - Step 3'
+    _form: \Drupal\site_ingestor\Form\SiteIngestorIngestForm_3
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.region_selector:
+  path: '/admin/site-ingestor/region-selector/{themeName}'
+  defaults:
+    _title: 'Ingest New Theme - Select Regions'
+    _controller: '\Drupal\site_ingestor\Controller\DefaultController::site_ingestor_region_selector'
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.create_regions:
+  path: /admin/site-ingestor/create-regions
+  defaults:
+    _title: 'Ingest New Theme - Create Regions'
+    _controller: '\Drupal\site_ingestor\Controller\DefaultController::site_ingestor_create_regions'
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.style_builder:
+  path: '/admin/site-ingestor/style-builder/{themeName}/{mode}'
+  defaults:
+    mode: create
+    _title: 'Ingest New Theme - Style Builder'
+    _controller: '\Drupal\site_ingestor\Controller\DefaultController::site_ingestor_style_builder'
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.create_styles:
+  path: /admin/site-ingestor/create-styles
+  defaults:
+    _title: 'Ingest New Theme - Create Styles'
+    _controller: '\Drupal\site_ingestor\Controller\DefaultController::site_ingestor_create_styles'
+  requirements:
+    _permission: 'administer site ingestor'
+site_ingestor.edit_html:
+  path: /admin/site-ingestor/edit-html
+  defaults:
+    _title: 'Ingest New Theme - Edit HTML'
+    _controller: '\Drupal\site_ingestor\Controller\DefaultController::site_ingestor_edit_html'
+  requirements:
+    _permission: 'administer site ingestor'

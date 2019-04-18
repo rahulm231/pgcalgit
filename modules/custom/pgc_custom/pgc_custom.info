@@ -1,0 +1,6 @@
+name = PG Calc Custom
+description = Form Alter/Page Preprocess for PGCALC
+core = 7.x
+
+
+stylesheets[all][] = css/pgc_custom.css

@@ -1,0 +1,102 @@
+<?php
+
+function pgc_giftguide_js_compiler($org_id) {
+  global $base_url;
+  $base_path = $base_url . '/';
+  // Get an array of abbreviation => label from the configuraiton, replaccing
+  // any blanks with the default gift-type labels.
+  $gifttype_labels = array_filter(pgc_giftcalcs_get_gifttype_labels($org_id, TRUE))
+    + pgc_appserver_gift_type_name_map();
+  $config = array(
+    'cssIncludes' => array(
+      (object) array('path' => $base_path . drupal_get_path('module', 'pgc_giftguide') . '/css/giftguide.css'),
+    ),
+    'gifttype_labels' => $gifttype_labels,
+    'templates' => pgc_giftguide_load_templates(),
+    'misc' => pgc_giftguide_get_general_settings($org_id),
+    'infoLinks' => pgc_giftguide_get_info_links($org_id),
+    'variables' => pgc_giftguide_get_variables($org_id),
+  );
+
+  $output = "PGC.apps.giftGuide = {};";
+  $output .= "PGC.apps.giftGuide.config = '" . addslashes(json_encode($config)) . "';";
+  $output .= file_get_contents(drupal_get_path('module', 'pgc_giftguide') . '/js/giftguide.js');
+  return $output;
+}
+
+/**
+ * Loads all of the mustache templates
+ * @return array
+ */
+function pgc_giftguide_load_templates() {
+  $templates = array();
+  if ($handle = opendir(drupal_get_path('module', 'pgc_giftguide') . '/templates')) {
+    while (false !== ($entry = readdir($handle))) {
+      if ($entry != "." && $entry != "..") {
+        $templateName = substr($entry, 0, strpos($entry, '.'));
+        $templates[$templateName] = file_get_contents(drupal_get_path('module', 'pgc_giftguide') . '/templates/' . $entry);
+      }
+    }
+    closedir($handle);
+  }
+  return $templates;
+}
+
+function pgc_giftguide_get_general_settings($org_id) {
+  $general_settings = array();
+  $profile = profile2_load_by_user($org_id, 'giftguide');
+
+  foreach ($profile as $id => $val) {
+    if (strpos($id, 'field_gg') === 0) {
+      if (isset($val['und'])) {
+        $general_settings[substr($id, 9)] = $val['und'][0]['value'];
+      }
+    }
+  }
+
+  return $general_settings;
+}
+
+function pgc_giftguide_get_info_links($org_id) {
+  $gift_types = pgc_appserver_gift_type_abbr_list();
+  $links = array();
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+  foreach ($gift_types as $abbr) {
+    if (isset($profile->{'field_' . $abbr . '_info_link'}['und'])) {
+      $links[$abbr] = $profile->{'field_' . $abbr . '_info_link'}['und'][0]['value'];
+    }
+  }
+
+  return $links;
+}
+
+function pgc_giftguide_get_variables($org_id) {
+  $variables = array();
+  $profile = profile2_load_by_user($org_id);
+  $variables[0] = array('CHARITY_NAME', $profile['org']->field_org_name['und'][0]['value']);
+  $variables[1] = array('PIF_MINIMUM', $profile['gifttypes']->field_pif_min_gift['und'][0]['value']);
+  $variables[2] = array('CRT_MINIMUM', $profile['gifttypes']->field_crat_min_gift['und'][0]['value']);
+  $variables[3] = array('CGA_MINIMUM', $profile['gifttypes']->field_ga_min_gift['und'][0]['value']);
+  $variables[4] = array('CRU_MINIMUM', $profile['gifttypes']->field_crut_min_gift['und'][0]['value']);
+  return $variables;
+}
+
+/**
+ * Altering profile form to add validation rule to default payment rate fields
+ * @param $form
+ * @param $form_state
+ * @return mixed
+ */
+function pgc_giftguide_form_profile2_form_alter(&$form, $form_state) {
+  if (isset($form['profile_giftguide'])) {
+    $uid = $form['#user']->uid;
+    $app_id = pgc_giftcalcs_get_profile_value($uid, 'field_app_id', 'org');
+    if (isset($form['profile_giftguide'])) {
+      $form['profile_giftguide']['field_gg_embed_code']['und'][0]['value']['#value'] =
+          '<div id="pgc-app-container"></div><script type="text/javascript" src="http://www.giftcalcs.com/apps/gg/' . $app_id . '"></script>';
+    }
+
+    return $form;
+  }
+}
+

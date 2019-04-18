@@ -1,0 +1,30 @@
+<?php
+
+/**
+ * @file
+ * Functions to support theming in the Bartik theme.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Template\Attribute;
+
+
+/**
+ * Implements hook_preprocess_HOOK() for block.html.twig.
+ */
+function pgcalc_master_preprocess_block(&$variables) {
+    
+  $variables['attributes']['class'][] = 'clearfix';
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for menu.html.twig.
+ */
+function pgcalc_master_preprocess_menu(&$variables) {
+  if ($variables['menu_name'] === 'main') {
+    $variables['attributes']['class'][] = 'nav';
+    $variables['attributes']['id'][] = 'main-menu';
+  }
+}
+
+

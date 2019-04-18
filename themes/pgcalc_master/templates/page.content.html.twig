@@ -1,0 +1,27 @@
+<div class="pg-wrap">
+  {% if page.titlebar_blocks %}
+    <div class="pg-page-header">
+      {{ page.titlebar_blocks }}
+    </div>
+  {% endif %}
+  {% if page.content_top %}
+    <div class="pg-content-top">
+      {{ page.content_top }}
+    </div>
+  {% endif %}
+  {% if page.content_inline_blocks %}
+    <div class="pg-content-inline-blocks">
+      {{ page.content_inline_blocks }}
+    </div>
+  {% endif %}
+  {% if page.content %}
+    <div class="pg-content-body">
+      {{ page.content }}
+    </div>
+  {% endif %}
+  {% if page.content_footer %}
+    <div class="pg-content-footer">
+      {{ page.content_footer }}
+    </div>
+  {% endif %}
+</div>

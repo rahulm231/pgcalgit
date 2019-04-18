@@ -1,0 +1,18 @@
+name: {{themename}}
+description: {{themedescription}}
+package: Core
+core: 8.x
+base theme: pgcalc_master
+#stylesheets[all][] = overrides.css
+regions:
+  titlebar_blocks: Titlebar Blocks
+  content: Content (Do not use)
+  content_top: Content Top
+  content_inline_blocks: Content Inline Blocks
+  content_body: Content Body
+  content_footer: Content Footer
+  menu: Menu
+  misc: Misc
+  help: Help
+  page_top: Page top
+  page_bottom: Page bottom

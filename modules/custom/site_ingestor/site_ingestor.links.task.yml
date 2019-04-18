@@ -1,0 +1,5 @@
+site_ingestor.ingest_form_1:
+  route_name: site_ingestor.ingest_form_1
+  title: 'Ingest New Theme'
+  weight: 1
+  base_route: site_ingestor.ingest_form_1

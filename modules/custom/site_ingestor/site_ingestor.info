@@ -1,0 +1,7 @@
+name = Site Ingestor
+description = Creates a customized Drupal theme from an existing website.
+package = PGCalc
+version = VERSION
+permissions = /
+core = 7.x
+stylesheets[all][] = site-ingestor.css

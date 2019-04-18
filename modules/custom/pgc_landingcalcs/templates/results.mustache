@@ -1,0 +1,15 @@
+<div id="results">
+    <h1>{{resultsTitle}}</h1>
+    <h2>Annual Payment: ${{annualPayment}}</h2>
+    <h2>Charitable Deduction: ${{charitableDeduction}}</h2>
+
+    <div class="bottom">
+        {{#buttonLink}}
+        <a href="{{buttonLink}}" class="btn" target="_blank">{{buttonText}}</a>
+        {{/buttonLink}}
+
+        {{#disclaimer}}
+        <div class="disclaimer">{{disclaimer}}</div>
+        {{/disclaimer}}
+    </div>
+</div>

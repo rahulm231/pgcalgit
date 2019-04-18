@@ -1,0 +1,10 @@
+<div class="gc-question input">
+    <label for="{{id}}" class="gc-form-label">{{label}} <span class="gc-required">{{required}}</span></label>
+    <input type="text" class="gc-form-text {{format}}" id="{{id}}" {{#placeholder}} placeholder="{{placeholder}}"
+        {{/placeholder}} value="{{value}}"/>
+    {{#helpText}}
+    	<!-- This html tag is commented for future use according to GEP-57
+    	<div class="help-text" style="font-size: 14px; color: red; padding-top: 5px;">{{helpText}}</div>-->
+    {{/helpText}}
+    <div class="gc-error">{{error}}</div>
+</div>

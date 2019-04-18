@@ -1,0 +1,14 @@
+push_to_git.form:
+  path: /admin/push-to-git
+  defaults:
+    _title: 'Push to Git'
+    _form: \Drupal\push_to_git\Form\PushToGitForm
+  requirements:
+    _permission: pushtogit
+push_to_git.config_form:
+  path: /admin/config/push-to-git
+  defaults:
+    _title: 'Configure Push to Git'
+    _form: \Drupal\push_to_git\Form\PushToGitConfigForm
+  requirements:
+    _permission: pushtogit

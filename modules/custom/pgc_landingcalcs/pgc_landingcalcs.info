@@ -1,0 +1,5 @@
+name = PG Calc Landing Calcs
+description = Landing Calcs
+core = 7.x
+configure = admin/config/pgc-landingcalcs
+dependencies[] = pgc_appserver

@@ -1,0 +1,25 @@
+<?php
+
+function pgc_giftcompare_schema() {
+  $schema['giftcompare'] = array(
+    'description' => 'Gift Compare data',
+    'fields' => array(
+      'uid'       => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'gift_types' => array(
+        'type' => 'blob',
+      ),
+      'gift_type_features' => array(
+        'type' => 'blob',
+      ),
+      'gift_features' => array(
+        'type' => 'blob',
+      ),
+    ),
+    'primary key' => array('uid'),
+    'unique keys' => array(
+      'uid' => array('uid'),
+    ),
+  );
+
+  return $schema;
+}

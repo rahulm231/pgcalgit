@@ -1,0 +1,15 @@
+global-components:
+  Version: 1.x
+  css:
+    theme:
+      css/reset.css: { media: "screen" }
+      css/base.css: { media: "screen" }
+      css/icons.css: { media: "screen" }
+  js:  
+    js/pgcalc_master.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal.ajax
+    - core/drupal
+    - core/drupalSettings
+    - core/jquery.once

@@ -1,0 +1,140 @@
+<?php
+
+function pgc_landingcalcs_js_compiler($org_id, $gift_type, $instance) {
+  global $base_url;
+  $base_path = $base_url . '/';
+  $config = array(
+    'giftType' => $gift_type,
+    'cssIncludes' => array(
+      (object) array('path' => $base_path . drupal_get_path('module', 'pgc_landingcalcs').'/css/landingcalcs.css'),
+    ),
+    'settings' => pgc_landingcalcs_load_config($org_id, $gift_type, $instance),
+    'templates' => pgc_landingcalcs_load_templates(),
+    'misc' => pgc_giftcalcs_get_general_settings($org_id),
+    'giftOptions' => pgc_landingcalcs_get_gift_options($org_id, $gift_type),
+    'wsURLs' => pgc_appserver_webservice_urls(),
+    'proxyURL' => $base_path . 'wsProxy.php',
+    'wsguid' => pgc_giftcalcs_get_profile_value($org_id, 'field_wsguid', 'org'),
+  );
+
+  $output = file_get_contents(drupal_get_path('module', 'pgc_landingcalcs') . '/js/landingcalcs.js');
+  $output .= "PGC.apps.landingCalcs.config = '" . addslashes(json_encode($config)) . "';";
+  return $output;
+}
+
+function pgc_landingcalcs_load_config($org_id, $gift_type, $instance) {
+  $profile = profile2_load_by_user($org_id, 'landing_calcs');
+  $field_collection_id = $profile->{'field_'.$gift_type}['und'][$instance]['value'];
+  $field_collection_revision = $profile->{'field_'.$gift_type}['und'][$instance]['revision_id'];
+  $field_collection = entity_load('field_collection_item', array($field_collection_id));
+  $field_collection = $field_collection[$field_collection_revision];
+  $fields = array();
+  foreach($field_collection as $field_name => $value) {
+    if(strpos($field_name, 'field_') === 0) {
+      if(isset($value['und']) && is_array($value ['und']) && isset($value['und'][0]['value'])) {
+        $fields[str_replace('field_', '', $field_name)] = $value['und'][0]['value'];
+      }
+    }
+  }
+  return $fields;
+}
+
+/**
+ * Load general config
+ * @param $org_id
+ * @return array
+ */
+function pgc_landingcalcs_get_general_settings($org_id) {
+  $general_settings = array();
+  $profile = profile2_load_by_user($org_id, 'landing_calcs');
+
+  foreach($profile as $id => $val) {
+    if(strpos($id, 'field_lc_config') === 0) {
+      if(isset($val['und'])) {
+        $general_settings[substr($id, 16)] = $val['und'][0]['value'];
+      }
+    }
+  }
+
+  return $general_settings;
+}
+
+/**
+ * Loads all of the mustache templates
+ * @return array
+ */
+function pgc_landingcalcs_load_templates() {
+  $templates = array();
+  if ($handle = opendir(drupal_get_path('module', 'pgc_landingcalcs') . '/templates')) {
+    while (false !== ($entry = readdir($handle))) {
+      if ($entry != "." && $entry != "..") {
+        $templateName = substr($entry, 0, strpos($entry, '.'));
+        $templates[$templateName] = file_get_contents(drupal_get_path('module', 'pgc_landingcalcs') . '/templates/'.$entry);
+      }
+    }
+    closedir($handle);
+  }
+  return $templates;
+}
+
+/**
+ * Retrieve all options for a gift type
+ * @param $org_id
+ * @param $gift_type
+ * @return mixed
+ */
+function pgc_landingcalcs_get_gift_options($org_id, $gift_type) {
+  $profile = profile2_load_by_user($org_id, 'gifttypes');
+
+  $fields = array();
+  foreach($profile as $field_name => $val) {
+    if(strpos($field_name, 'field_'.$gift_type.'_') === 0) {
+      $fields[substr($field_name, strlen('field_'.$gift_type.'_'))] = $val[LANGUAGE_NONE][0]['value'];
+    }
+  }
+
+  return $fields;
+}
+
+/**
+ * Altering profile form to add embed code
+ * @param $form
+ * @param $form_state
+ * @return mixed
+ */
+function pgc_landingcalcs_form_profile2_form_alter(&$form, $form_state) {
+  if(isset($form['profile_landing_calcs'])) {
+    $uid = $form['#user']->uid;
+    $app_id = pgc_giftcalcs_get_profile_value($uid, 'field_app_id', 'org');
+    // Add JS for preview feature
+    drupal_add_js(array('pgc_landingcalcs' => array('app_id' => $app_id)), 'setting');
+    drupal_add_js(drupal_get_path('module', 'pgc_landingcalcs').'/js/preview.js');
+    // Add embed codes
+    $gift_type = 'ga';
+    foreach($form['profile_landing_calcs']['field_ga']['und'] as $key => $val) {
+      if(is_numeric($key)) {
+        $form['profile_landing_calcs']['field_ga']['und'][(int)$key]['field_lc_embed']['und'][0]['value']['#value'] =
+          '<div id="container" style="width: 350px">' .
+          '<script type="text/javascript" src="https://www.giftcalcs.com/xdm/easyXDM.min.js"></script>' .
+          '<style type="text/css">#pgc-container iframe {width:100%;}' .
+          '</style>'.
+          '<div id="pgc-container" style="width:100%;">&nbsp;</div><script type="text/javascript">var PGC = {};PGC.portal_id = \''.$app_id.'\';PGC.gift_type=\''.$gift_type.'\'; PGC.instance=\''.$key.'\';</script><script type="text/javascript" src="https://www.giftcalcs.com/js/landingcalcs.js"></script>' .
+          '</div>';
+      }
+    }
+
+    $gift_type = 'dga';
+    foreach($form['profile_landing_calcs']['field_dga']['und'] as $key => $val) {
+      if(is_numeric($key)) {
+        $form['profile_landing_calcs']['field_dga']['und'][(int)$key]['field_lc_embed']['und'][0]['value']['#value'] =
+          '<div id="container" style="width: 350px">' .
+          '<script type="text/javascript" src="https://www.giftcalcs.com/xdm/easyXDM.min.js"></script>' .
+          '<style type="text/css">#pgc-container iframe {width:100%;}' .
+          '</style>'.
+          '<div id="pgc-container" style="width:100%;">&nbsp;</div><script type="text/javascript">var PGC = {};PGC.portal_id = \''.$app_id.'\';PGC.gift_type=\''.$gift_type.'\'; PGC.instance=\''.$key.'\';</script><script type="text/javascript" src="https://www.giftcalcs.com/js/landingcalcs.js"></script>' .
+          '</div>';
+      }
+    }
+  }
+  return $form;
+}

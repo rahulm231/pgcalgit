@@ -1,0 +1,325 @@
+.pg-wrap h1 {
+  color: #333;
+  font-size: 2rem;
+}
+
+.pg-wrap h2 {
+  text-decoration: none;
+}
+
+.pg-wrap a {
+  text-decoration: none;
+}
+
+.pg-wrap a:hover {
+  text-decoration: underline;
+}
+
+#block-system-main-menu {
+  -webkit-box-shadow: 0px 0px 4px #87a625;
+  -moz-box-shadow: 0px 0px 4px #87a625;
+  box-shadow: 0px 0px 4px #87a625;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  behavior: url(/PIE.htc);
+  width: 300px;
+}
+
+#block-system-main-menu h2 a {
+  display: block;
+  background: #25551b;
+  line-height: 60px;
+  margin-bottom: 0;
+  color: #fff;
+  text-transform: uppercase;
+  font-size: 20px;
+  font-weight: normal;
+  font-family: sans-serif;
+  text-align: center;
+  padding: 0;
+  -moz-border-radius: 5px 5px 0 0;
+  -webkit-border-radius: 5px 5px 0 0;
+  border-radius: 5px 5px 0 0;
+  text-decoration: none;
+  behavior: url(/PIE.htc);
+}
+
+#main-menu {
+  padding: 0;
+  margin: 0;
+}
+
+#main-menu li {
+  padding: 0;
+  margin: 0;
+  height: auto;
+  width: auto;
+  list-style: none;
+}
+
+#main-menu li:hover {
+  color: #87a625;
+  font-weight: bold;
+}
+
+#main-menu li a {
+  font-size: 15px;
+  color: #25551b;
+  font-weight: normal;
+  display: block;
+  background: #fff;
+  padding: 15px 25px 15px 20px;
+  border: 0;
+  border-bottom: 1px solid #87a625;
+  line-height: 20px;
+  text-decoration: none;
+}
+
+#main-menu li a:hover {
+  text-decoration: none;
+  color: #87a625;
+}
+
+#main-menu li.expanded a {
+  background: #fff url('/sites/all/themes/pgcalc_master/img/menu-arrow-down.png') center right no-repeat !important;
+}
+
+#main-menu li.collapsed a {
+  background: #fff url('/sites/all/themes/pgcalc_master/img/menu-arrow-right.png') center right no-repeat !important;
+}
+
+#main-menu li a.active {
+  color: #87a625;
+  font-weight: bold;
+}
+
+#main-menu li.last a {
+  -moz-border-radius: 0 0 5px 5px;
+  -webkit-border-radius: 0 0 5px 5px;
+  border-radius: 0 0 5px 5px;
+  behavior: url(/PIE.htc);
+}
+
+#main-menu ul li:hover {
+  color: #87a625;
+}
+
+#main-menu li.expanded ul li a {
+  background: #fff;
+  : !important;
+  background-image: none !important;
+  border-bottom: 0;
+  font-size: 14px;
+  padding: 10px 20px 10px 40px;
+  line-height: 20px;
+}
+
+#main-menu ul li a.active {
+  color: #87a625;
+  font-weight: bold;
+}
+
+#main-menu ul li a:hover {
+  color: #87a625;
+}
+
+#main-menu li.expanded ul ul li a {
+  background: #fff;
+  : !important;
+  background-image: none !important;
+  font-size: 14px;
+  padding: 5px 20px 5px 50px;
+}
+
+#main-menu ul ul li a.active {
+  color: #87a625;
+  font-weight: bold;
+}
+
+.pg-wrap table {
+  border: 0;
+  border-spacing: 0;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.pg-wrap table tr th {
+  background: #25551b;
+  color: #fff;
+  font-size: 1em;
+  padding: 7px;
+  border: 1px solid #87a625;
+}
+
+.pg-wrap table tr td {
+  color: #000;
+  background: #fff;
+  padding: 7px;
+  border: 1px solid #87a625;
+}
+
+#block-pgc-contact-block-pgc-contact-block {
+  background: #87a625;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  padding: 20px;
+  -webkit-box-shadow: 0px 0px 0px #666;
+  -moz-box-shadow: 0px 0px 0px #666;
+  box-shadow: 0px 0px 0px #666;
+  behavior: url(/PIE.htc);
+}
+
+#block-pgc-contact-block-pgc-contact-block .title {
+  color: #fff;
+  font-size: 1.5em;
+  padding: 0;
+  margin: 0;
+}
+
+#pgc-contact-block {
+  padding-top: 10px;
+}
+
+#pgc-contact-block li a {
+  color: #fff;
+}
+
+#pgc-contact-block li a:hover {
+  color: #25551b;
+}
+
+#block-pgc-contact-block-pgc-contact-footer-block {
+  background: #87a625;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  padding: 10px 20px;
+  -webkit-box-shadow: 0px 0px 0px #666;
+  -moz-box-shadow: 0px 0px 0px #666;
+  box-shadow: 0px 0px 0px #666;
+  behavior: url(/PIE.htc);
+}
+
+#block-pgc-contact-block-pgc-contact-footer-block .title {
+  color: #fff;
+  font-size: 1.5em;
+}
+
+#pgc-contact-footer-block li a {
+  color: #fff;
+}
+
+#pgc-contact-footer-block li a:hover {
+  color: #25551b;
+}
+
+#pgc_resource_block {
+  background: #fff;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  padding: 15px 20px;
+  : ;
+  border: 2px solid #87a625;
+  text-align: center;
+  behavior: url(/PIE.htc);
+}
+
+#pgc_resource_block a {
+  color: #25551b;
+}
+
+#pgc_resource_block a:hover {
+  color: #87a625;
+}
+
+.pg-gift-details .accordion-switch {
+  border-top: 1px solid #87a625;
+  border-bottom: 1px solid #87a625;
+}
+
+.pg-gift-details .accordion-switch a {
+  background: #25551b;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  padding: 0 15px;
+  border: 0px solid #ffffff;
+  color: #ffffff;
+  text-decoration: none;
+  display: block;
+  font-size: .9em;
+  font-weight: normal;
+  margin: 10px 0;
+  line-height: 40px;
+  behavior: url(/PIE.htc);
+}
+
+.pg-gift-details .accordion-switch a:hover {
+  background: #87a625;
+  text-decoration: none;
+  color: #fff;
+}
+
+.pg-gift-details .accordion-switch span {
+  float: right;
+  font-size: 1.5em;
+  font-weight: 200;
+  line-height: 40px;
+}
+
+.pg-breadcrumb .pg-breadcrumb-links {
+  font-size: .9em;
+  font-style: normal;
+  text-transform: none;
+  text-decoration: none;
+}
+
+.pg-breadcrumb .pg-breadcrumb-links a {
+  font-size: .9em;
+  font-style: normal;
+  text-transform: none;
+  text-decoration: none;
+  color: #87a625;
+}
+
+.pg-breadcrumb .pg-breadcrumb-links a:hover {
+  color: #25551b;
+}
+
+.pgc-brochure-bg-top {
+  height: 80px;
+  background-color: #0079a5;
+}
+
+.pgc-brochure-header-text {
+  color: #fff;
+  font-weight: normal;
+  font-size: 24px;
+  background-color: #606870;
+}
+
+.pgc-brochure-body-text ul li span.pgc-before::before {
+  color: #606870;
+  content: "\25AA";
+}
+
+.pgc-brochure-footer-text {
+  background-color: #0079a5;
+  color: #fff;
+}
+
+.pg-page-btns .pgc-title-btn {
+  background-color: #87a625;
+}
+
+.pgc-font-color1 {
+  color: #0079a5;
+}
+
+.pgc-font-color2 {
+  color: #606870;
+}
+

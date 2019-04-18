@@ -1,0 +1,247 @@
+<?php
+/**
+ * @file
+ * Push file changes from the dev server to GitHub.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function push_to_git_theme() {
+  return array(
+    'ptg_diff_list' => array(
+      'template' => 'diff-list',
+      'variables' => array('files' => ''),
+    ),
+  );
+}
+
+/**
+ * Stage files in git and return a list of changes to be committed.
+ *
+ * @param string $repo_path
+ *   the path to the repository, already validated
+ *
+ * @return mixed
+ *   an array, possibly empty, of added, changed, or deleted files
+ *   FALSE on error
+ */
+function push_to_git_diff_list($repo_path) {
+  $steps = array(
+    'git add drupal/sites/all',
+    'git add -u drupal/sites/all',
+    'git diff --cached --name-only',
+  );
+  $result = _push_to_git_exec($repo_path, $steps, FALSE);
+  return $result['exit_code'] ? FALSE : $result['response'];
+}
+
+/**
+ * Commit and push changes to GitHub.
+ *
+ * The files were staged in push_to_git_diff_list().
+ *
+ * @return array
+ *   an array of a message and a status, suitable for drupal_set_message().
+ */
+function push_to_git_push() {
+  if (!$repo_path = _push_to_git_repo_path()) {
+    return array("Push to Git repository path undefined. <a href=\"/admin/config/push-to-git\">Click here</a> to configure.", 'error');
+  }
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $site_name = variable_get('site_name', 'undefined site-name');
+
+  $timestamp = date('m/d/Y h:i:s a', time());
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $site_system_name = variable_get('site_system_name');
+
+  if ($site_system_name != 'pgcalc_master') {
+    $site_system_name = 'dev_' . $site_system_name;
+  }
+  $commit_message = 'Drupal Push to Git commit from %site_name on %timestamp';
+  $commit_args = array('%site_name' => $site_name, '%timestamp' => $timestamp);
+  $steps = array(
+    "git -c user.email=\"email@example.com\" -c user.name=\"PGCALC-1\" commit -m \"Drupal Push to Git commit from $site_name on $timestamp\"",
+    "git push origin $site_system_name",
+  );
+  $result = _push_to_git_exec($repo_path, $steps);
+  if ($result['exit_code'] == 0) {
+    \Drupal::logger('push_to_git')->info($commit_message, []);
+    return array('Changes successfully pushed to git.', 'status');
+  }
+  else {
+    \Drupal::logger('push_to_git')->error($result['response'], array());
+    return array('An error occurred while attempting to push to git. Please contact a system administrator.', 'error');
+  }
+}
+
+/**
+ * Merge a development branch into master.
+ *
+ * Originally, this function was supposed to generate a pull request, to be
+ * reviewed manually. Hence the name. Now, just do the merge. Also copy uploaded
+ * files from sites/default/files on the dev server to production.
+ *
+ * @param bool $move_database
+ *   If TRUE, then copy the development database as well as the files.
+ *
+ * @return array
+ *   an array of a message and a status, suitable for drupal_set_message().
+ */
+function push_to_git_pull_request($move_database) {
+  if (!$repo_path = _push_to_git_repo_path()) {
+    return array("Push to Git repository path undefined. <a href=\"/admin/config/push-to-git\">Click here</a> to configure.", 'error');
+  }
+
+  // LS-11 Below changes has been made to make push to git module work for both old productin and new production  
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $prod_ip = variable_get('ptg_prod_ip', '192.237.215.237');
+ // take effect at line 159
+  // LS-11 Ends
+  $error_message = 'An error occurred while attempting to push to git. Please contact a system administrator.';
+  // Find the current git branch.
+  $steps = array('git rev-parse --abbrev-ref HEAD');
+  $result = _push_to_git_exec($repo_path, $steps);
+  if ($result['exit_code'] || empty($result['response'])) {
+    \Drupal::logger('push_to_git')->error('Failed to get branch name from git: %resp', array('%resp' => $result['response']));
+    return array($error_message, 'error');
+  }
+  $git_branch = $result['response'];
+  // Merge into master, push to GitHub, and copy files, checking for errors
+  // after each step.
+  $steps = array(
+    'git checkout master',
+    'git pull',
+    "git -c user.email=\"email@example.com\" -c user.name=\"PGCALC-1\" merge $git_branch",
+    'git push',
+    "git checkout $git_branch",
+    "rsync -az --exclude=/styles --exclude=/css --exclude=/js --exclude=/simpletest drupal/sites/default/files/* bender@$prod_ip:$repo_path/drupal/sites/default/files",
+  );
+  $result = _push_to_git_exec($repo_path, $steps);
+  if ($result['exit_code']) {
+    return array($result['response'], 'error');
+  }
+  // If we are still here, then it worked!
+  \Drupal::logger('push_to_git')->info('Successfully merged %branch into master and pushed to GitHub.', array('%branch' => $git_branch));
+
+  // Send an e-mail with the results.
+  $user = \Drupal::currentUser();
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $site_name = variable_get('site_name', 'undefined site-name');
+
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $site_system_name
+//     = variable_get('site_system_name', 'undefined site-system-name');
+
+  $timestamp = date('m/d/Y h:i:s a', time());
+  $module = 'push_to_git';
+  $key = 'notice';
+  $language = language_default();
+  $params = array();
+  $from = 'drupal_info@pgcalc.com';
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $to = variable_get('ptg_email', 'apalmer@pgcalc.com');
+
+  $send = FALSE;
+  $message = drupal_mail($module, $key, $to, $language, $params, $from, $send);
+  $message['subject'] = 'PGCalc Marketing Pull Request';
+  $message['body'] = array();
+  $message['body'][] = 'This request has been handled automatically. Please confirm.';
+  $message['body'][] = t(
+    'Move to production requested on site: %site at: %time by user: %user',
+    array('%site' => $site_name, '%time' => $timestamp, '%user' => $user->name)
+  );
+  $message['body'][] = $move_database ? 'This request requires the database to be copied from Development to Production. The site system name is: ' . $site_system_name : 'No database move is required.';
+  // Retrieve the responsible implementation for this message.
+  $system = drupal_mail_system($module, $key);
+  // Format the message body.
+  $message = $system->format($message);
+  // Send e-mail.
+  $message['result'] = $system->mail($message);
+  if ($message['result'] === TRUE) {
+    $message = t(
+      'The site has been pushed to production and an e-mail was sent to %admin',
+      array('%admin' => $to)
+    );
+    return array($message, 'status');
+  }
+  else {
+    return array('The site has been pushed to production, but there was an error sending e-mail.', 'error');
+  }
+}
+
+/**
+ * Execute shell commands, checking for errors.
+ *
+ * Stop executing commands if one of them has a non-zero error code.
+ *
+ * @param array $steps
+ *   a list of strings to be passed to exec()
+ * @param bool $implode
+ *   (optional) return results as a string
+ *
+ * @return array
+ *   an array with the following keys:
+ *   - exit_code: the exit code of the last executed command
+ *   - response: the response of the last executed command: by default, return
+ *     it as a string; if $implode is FALSE, then return an array of strings
+ */
+function _push_to_git_exec($path, array $steps, $implode = TRUE) {
+  foreach ($steps as $step) {
+    $response = array();
+    exec("cd $path; $step 2>&1", $response, $exit_code);
+    if ($exit_code) {
+      \Drupal::logger('push_to_git')->error('The step %step failed with response %response at path %path', array(
+          '%step' => $step,
+          '%response' => print_r($response, TRUE),
+          '%path' => $path,
+        ));
+      break;
+    }
+  }
+  return array(
+    'exit_code' => $exit_code,
+    'response' => $implode ? implode(PHP_EOL, $response) : $response,
+  );
+}
+
+/**
+ * Retrieve and validate the repository path.
+ */
+function _push_to_git_repo_path() {
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $repo_path = variable_get('ptg_repo_path', FALSE);
+$config = \Drupal::config('pushToGit.settings');
+$repo_path = $config->get('ptg_repo_path');
+  if (!$repo_path) {
+    drupal_set_message("Push to Git repository path undefined. <a href=\"/admin/config/push-to-git\">Click here</a> to configure.", 'error');
+    return FALSE;
+  }
+  $repo_path = trim($repo_path);
+  if (!file_exists($repo_path) || is_file($repo_path)) {
+    drupal_set_message("Push to Git repository path is not a directory. <a href=\"/admin/config/push-to-git\">Click here</a> to configure.", 'error');
+    return FALSE;
+  }
+  return $repo_path;
+}

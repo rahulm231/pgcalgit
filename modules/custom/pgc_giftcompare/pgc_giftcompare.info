@@ -1,0 +1,5 @@
+name = PG Calc Gift Compare
+description = Gift Compare
+core = 7.x
+configure = admin/config/pgc-giftcompare
+dependencies[] = pgc_appserver

@@ -1,0 +1,43 @@
+#giftCompare table {
+  border-spacing: 0;
+}
+
+#giftCompare th {
+  text-align: left;
+  padding: 3px 20px 3px 5px !important;
+}
+
+/* GEP-66 - Starts here */
+#giftCompare th a{
+  color:#ffffff;
+}
+/* GEP-66 - Ends here */
+
+#giftCompare td {
+  padding: 3px 20px 3px 5px !important;
+}
+
+#giftCompare table label {
+  display: inline-block;
+}
+
+#giftCompare .gc-btn {
+  padding: 10px 15px;
+  border-radius: 5px;
+  box-shadow: 1px 1px 3px #ddd;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  text-decoration: none;
+  display: block;
+  float: left;
+  margin-bottom: 20px;
+  font-weight: bold;
+  position: relative;
+  behavior: url(/PIE.htc);
+  border: 0;
+}
+
+#giftCompare .backCol {
+  border: 0 !important;
+  padding: 15px 0 0 0 !important;
+}

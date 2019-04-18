@@ -1,0 +1,11 @@
+{{#cssIncludes}}
+<link rel="stylesheet" href="{{{path}}}" />
+{{/cssIncludes}}
+<script type="text/javascript" src="{{server}}/xdm/easyXDM.js"></script>
+<ul id="pgc-tabs" class="gc-noprint">
+{{#tabs}}
+    <li class="pgc-tab {{active}}" href="javascript:void(0);" data-app="{{app}}">{{appTitle}}</li>
+{{/tabs}}
+    <div class="pgc-clearfix"></div>
+</ul>
+<div id="pgc-app"></div>

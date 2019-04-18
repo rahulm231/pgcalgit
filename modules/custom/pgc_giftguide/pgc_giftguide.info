@@ -1,0 +1,5 @@
+name = PG Calc Guide
+description = GiftGuide Application
+core = 7.x
+configure = admin/config/pgc-giftguide
+dependencies[] = pgc_appserver

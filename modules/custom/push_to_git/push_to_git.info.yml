@@ -1,0 +1,7 @@
+name: 'Push to Git'
+description: 'Allows a Drupal user to push local file changes to Git, for example: generated features and site files.'
+package: PGCalc
+permissions: /
+core: 8.x
+type: module
+dependencies: {  }

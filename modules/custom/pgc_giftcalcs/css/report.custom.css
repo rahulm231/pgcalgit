@@ -1,0 +1,103 @@
+.clear {
+  clear: both;
+}
+.dataTables_length, .dataTables_filter {
+  margin: 10px 0 20px 0;
+}
+input{
+  height: 18px;
+  background-color: rgb(248, 248, 248);
+  border-radius: 5px;
+}
+
+#pgc-giftcalcs-reports-details-form input,
+#pgc-giftcalcs-reports-details-form select{
+  height: 18px;
+  background-color: rgb(248, 248, 248);
+  border-radius: 5px;
+  padding: 0;
+  border: 0;
+}
+
+#pgc-giftcalcs-reports-details-form .form-item-params-MinGiftDate,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinGiftDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MaxGiftDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinCalculationDate,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinCalculationDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MaxCalculationDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-GiftTypeList > label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinGiftAmount,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinGiftAmount label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MaxGiftAmount label,
+#pgc-giftcalcs-reports-details-form .form-item-params-LastName,
+#pgc-giftcalcs-reports-details-form .form-item-params-LastName label,
+#pgc-giftcalcs-reports-details-form .form-item-params-FirstName label,
+#pgc-giftcalcs-reports-details-form .form-item-number-entries label,
+#pgc-giftcalcs-reports-details-form .form-item-number-entries select {
+  float: left;
+}
+
+#pgc-giftcalcs-reports-details-form .form-item-params-MinGiftDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinCalculationDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-GiftTypeList label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MinGiftAmount label,
+#pgc-giftcalcs-reports-details-form .form-item-params-LastName label,
+#pgc-giftcalcs-reports-details-form .form-item-number-entries label {
+  margin-right: 4px;
+}
+
+#pgc-giftcalcs-reports-details-form #edit-params-gifttypelist {
+  height: 100px;
+  overflow: auto;
+  width: 250px;
+}
+
+#pgc-giftcalcs-reports-details-form #edit-params-gifttypelist .form-type-checkbox {
+  padding: 0;
+}
+
+#pgc-giftcalcs-reports-details-form .form-item-params-MaxGiftDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MaxCalculationDate label,
+#pgc-giftcalcs-reports-details-form .form-item-params-MaxGiftAmount label,
+#pgc-giftcalcs-reports-details-form .form-item-params-FirstName label {
+  margin-left: 6px;
+  margin-right: 6px;
+}
+
+#pgc-giftcalcs-reports-details-form .form-item-number-entries .field-suffix {
+  margin-left: 6px;
+  font-weight: 700;
+}
+
+#pgc-giftcalcs-reports-details-form #reports-details_search {
+  border: 1px solid #999;
+  border-radius: 1px;
+  cursor: pointer;
+  font-size: 0.88em;
+  color: #000000;
+  padding: 5px;
+  height: auto;
+}
+
+table.pgc-report{
+  border: 0;
+}
+table.pgc-report th{
+  text-transform: none;
+  border: 0;
+}
+
+.dataTables_wrapper .dt-buttons {
+  float: right;
+}
+
+/* #GEP-2 - starts */
+table#summary tfoot tr th{
+	padding: 8px 10px !important;
+	text-align: right !important;
+}
+
+table#summary tfoot tr th.leftAlign{
+	text-align: left !important;
+}
+/* #GEP-2 - starts */

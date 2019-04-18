@@ -1,0 +1,75 @@
+<div id="calcForm">
+    {{#h1Text}}
+    <h1>{{h1Text}}</h1>
+    {{/h1Text}}
+
+    {{#formText}}
+    <div class="formText">
+        {{formText}}
+    </div>
+    {{/formText}}
+
+    <div class="row">
+            <strong>Annuitant(s):</strong>
+            <input id="annuitants_one" type="radio" name="annuitants" value="1" checked="checked" /><label for="annuitants_one" class="normal">Myself</label>
+            <input id="annuitants_two" type="radio" name="annuitants" value="2" /><label for="annuitants_two" class="normal">Myself and another person</label>
+    </div>
+
+    <div class="row">
+        <label for="name">
+            Name:
+            <input id="name" name="name" type="text" />
+        </label>
+    </div>
+
+    {{#useBirthdates}}
+    <div class="row">
+        <label for="birthdate1">
+            Birthdate: <input type="text" id="birthdate1" name="birthdate1" class="birthdate" />
+        </label>
+    </div>
+    <div class="row twoLife" style="display:none">
+        <label for="birthdate2">
+            <br />
+            Birthdate 2: <input type="text" id="birthdate2" name="birthdate2" class="birthdate" />
+        </label>
+    </div>
+    {{/useBirthdates}}
+
+    {{^useBirthdates}}
+    <div class="row">
+        <label for="age1">
+            Age: <input type="text" id="age1" name="age1" class="age" />
+        </label>
+        <label for="age2" class="twoLife" style="display:none">
+            Age 2: <input type="text" id="age2" name="age2" class="age" />
+        </label>
+    </div>
+    {{/useBirthdates}}
+    <div class="row">
+        <label for="giftAmount">
+            Gift Amount: <input type="text" id="giftAmount" name="giftAmount" />
+        </label>
+    </div>
+
+    {{#showDeferred}}
+    <div class="row">
+        <label for="yearsDeferred">
+            Years Deferred:
+            <select id="yearsDeferred" name="yearsDeferred">
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+                <option value="25">25</option>
+                <option value="30">30</option>
+            </select>
+        </label>
+    </div>
+    {{/showDeferred}}
+
+    <div id="errors"></div>
+
+    <button id="calculate" class="btn">{{buttonText}}</button>
+    <div class="clear"></div>
+</div>

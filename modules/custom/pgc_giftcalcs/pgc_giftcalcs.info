@@ -1,0 +1,5 @@
+name = PG Calc GiftCalcs
+description = GiftCalcs Application
+core = 7.x
+configure = admin/config/pgc-giftcalcs
+dependencies[] = pgc_appserver

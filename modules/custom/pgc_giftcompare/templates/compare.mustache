@@ -1,0 +1,31 @@
+<table>
+    <thead>
+    <tr>
+        <th></th>
+        {{#labels}}
+            <th>{{{giftA}}}</th>
+            <th>{{{giftB}}}</th>
+            {{#giftC}}
+            <th>{{{giftC}}}</th>
+            {{/giftC}}
+        {{/labels}}
+    </tr>
+    </thead>
+    <tbody>
+    {{#features}}
+    <tr>
+        <td>{{label}}</td>
+        <td>{{{giftA}}}</td>
+        <td>{{{giftB}}}</td>
+        {{#giftC}}
+        <td>{{{giftC}}}</td>
+        {{/giftC}}
+    </tr>
+    {{/features}}
+    <tr>
+        <td colspan="3" class="backCol">
+            <button id="backBtn" class="gc-btn">Back to gift options</button>
+        </td>
+    </tr>
+    </tbody>
+</table>

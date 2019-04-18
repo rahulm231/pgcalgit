@@ -1,0 +1,426 @@
+.clear {
+    clear: both;
+}
+.content {
+    margin: 0;
+    width: auto;
+    clear: none;
+    float: none;
+}
+/* Need to disable pushing the body down when the toolbar
+   is visible, this breaks some layouts */
+body.toolbar-drawer {
+    padding-top: 0 !important;
+}
+/* Regions (used only when not available in target site */
+#pgc-wrap-main {
+    width: 960px;
+}
+#pgc-region-sidebar {
+    float: left;
+    width: 220px;
+    padding-right: 30px;
+}
+#pgc-region-main {
+    float: left;
+    width: 710px;
+}
+
+/* Title bar */
+/* #PGCS-453*/
+/*.pg-page-btns{
+	float:right;
+	margin-top:10px;
+}
+*/
+.pg-page-btns #titlebar-links{
+	float:right;
+}
+
+.pg-page-header h1 {
+    margin-bottom: 15px;
+}
+
+
+/* PGCS-425 */
+.pg-page-btns .pgc-share .atc_s{
+	font-size:0;
+}
+
+
+/* Breadcrumb */
+.pg-breadcrumb .pg-breadcrumb-links {
+    clear: both;
+    width: 100%;
+    padding: 10px 0;
+    margin: 20px 0;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+}
+.pg-breadcrumb a {
+
+}
+/* Tabs */
+.tabs.primary {
+    float: none;
+    width: auto;
+    margin: 0 0 15px 0;
+    padding: 0;
+    border-bottom: 1px solid #eee;
+    background: none;
+}
+.tabs.primary li {
+    display: inline-block;
+    *zoom: 1;
+    padding: 8px 0;
+    margin-right: 10px;
+    list-style-type: none;
+    font-size: .9em;
+}
+
+/* Page banner */
+.block-pgc-slideshow-block #pgc-banner {
+    margin-bottom: 20px;
+}
+.block-pgc-slideshow-block #pgc-banner img {
+    margin: 0;
+    padding: 0;
+}
+.block-pgc-slideshow-block #pgc-banner .caption {
+	font-size: 0.9em;
+	font-style: italic;
+	line-height: 1.3;
+  margin-top: 7.5px;
+	margin-top: 0.75rem;
+}
+
+/* Inline blocks */
+.pg-content-inline-blocks {
+    float: right;
+    margin-left: 20px;
+    margin-bottom: 20px;
+}
+
+/* Homepage */
+.pg-featured-links .break {
+    width: 100%;
+    border-bottom: 1px solid #eee;
+    margin: 25px 0;
+    clear: both;
+}
+.pg-featured-link {
+    width: 48%;
+    display:inline-block;
+}
+.pg-featured-link.even {
+    padding-right: 2%;
+}
+.pg-featured-link.odd {
+    padding-left: 2%;
+}
+
+/* Section landing page */
+.node-landing-page.pg-node .field-name-body {
+    border-bottom: 1px solid #d8d8d8;
+    margin-bottom: 23px;
+}
+.pg-content-body .child-page {
+    border-bottom: 1px solid #d8d8d8;
+    padding: 23px 0;
+}
+.pg-content-body .child-page.first {
+    padding-top: 0;
+}
+.pg-content-body .child-page.last {
+    border-bottom: 0;
+}
+
+.pg-content-body .child-page .thumbnail {
+    float: left;
+}
+.pg-content-body .child-page .details {
+
+}
+.pg-content-body .child-page .field-name-body {
+    margin: 0;
+    border: 0;
+}
+
+/* Newsletter archive */
+.pg-node .view-newsletter-archive .posted {
+    margin-bottom: 10px;
+}
+
+.pg-node .view-newsletter-archive .views-row {
+    border-bottom: 1px solid #d8d8d8;
+    padding-bottom: 23px;
+    margin-bottom: 23px;
+}
+.pg-node .view-newsletter-archive .views-row-last {
+    border-bottom: 0;
+}
+
+/* Contact page */
+.pg-node .view-contacts .views-row {
+    width: 31%;
+    float: left;
+}
+.pg-node .view-contacts .views-row img {
+    width: 100%;
+    height: 100%;
+    margin-bottom: 15px;
+}
+.pg-node .view-contacts .views-row-1,
+.pg-node .view-contacts .views-row-2,
+.pg-node .view-contacts .views-row-4,
+.pg-node .view-contacts .views-row-5,
+.pg-node .view-contacts .views-row-7,
+.pg-node .view-contacts .views-row-8,
+.pg-node .view-contacts .views-row-10,
+.pg-node .view-contacts .views-row-11,
+.pg-node .view-contacts .views-row-13,
+.pg-node .view-contacts .views-row-14,
+.pg-node .view-contacts .views-row-16,
+.pg-node .view-contacts .views-row-17,
+.pg-node .view-contacts .views-row-19,
+.pg-node .view-contacts .views-row-20{
+    padding-right: 3.5%
+}
+.pg-node .view-contacts .views-row-3,
+.pg-node .view-contacts .views-row-6,
+.pg-node .view-contacts .views-row-9,
+.pg-node .view-contacts .views-row-12,
+.pg-node .view-contacts .views-row-15,
+.pg-node .view-contacts .views-row-18{
+    padding-right: 3.5%
+}
+.pg-node .view-contacts .views-row span,
+.pg-node .view-contacts .views-row div,
+.pg-node .view-contacts .views-row div div,
+.pg-node .view-contacts .views-row div span {
+    line-height: 1.5em;
+}
+.pg-node .view-contacts .name {
+    font-weight: bold;
+}
+
+/* Gift type page */
+.pg-how-gift-helps {
+    padding-top: 20px;
+    margin-top: 30px;
+    border-top: 1px solid #ddd;
+    margin-bottom: 30px;
+}
+.pg-how-gift-helps-overview {
+    margin-bottom: 20px;
+}
+.pg-how-gift-helps-item {
+    float: left;
+}
+.pg-how-gift-helps-item img {
+  width: 100%;
+}
+.pg-gift-details .accordion-switch {
+
+}
+
+.pg-gift-details .accordion-switch a {
+
+}
+
+/* Contact block */
+#block-pgc-contact-block-pgc-contact-block {
+}
+#block-pgc-contact-block-pgc-contact-block .title {
+    margin-bottom: 10px;
+}
+#pgc-contact-block {
+    margin: 0;
+    padding: 0;
+}
+#pgc-contact-block li {
+    list-style-type: none;
+    line-height: 35px;
+}
+#pgc-contact-block li span {
+    font-size: 25px;
+    vertical-align: middle;
+    padding-right: 10px;
+}
+#pgc-contact-block li a {
+    text-decoration: none;
+}
+#pgc-contact-block li a:hover {
+    text-decoration: none;
+}
+
+/* Contact footer block */
+.block-pgc-contact-footer-block {
+}
+#pgc-contact-footer-block {
+    margin: 0;
+    padding: 0;
+}
+#pgc-contact-footer-block li {
+    list-style-type: none;
+    line-height: 35px;
+    float: left;
+    padding-right: 25px;
+}
+#pgc-contact-footer-block li span {
+    font-size: 30px;
+    vertical-align: middle;
+    padding-right: 10px;
+}
+#pgc-contact-footer-block li a {
+    text-decoration: none;
+    line-height: 35px;
+}
+#pgc-contact-footer-block li a:hover {
+    text-decoration: none;
+}
+
+/* Resource block */
+#pgc_resource_block {
+    list-style-type: none;
+    line-height: 25px;
+    margin-top: 15px;
+}
+#pgc_resource_block span {
+    font-size: 25px;
+    vertical-align: middle;
+    padding-right: 10px;
+}
+#pgc_resource_block span.icon-none {
+    padding: 0;
+}
+#pgc_resource_block a {
+    text-decoration: none;
+}
+#pgc_resource_block a:hover {
+    text-decoration: none;
+}
+
+/* Page header buttons */
+.pg-page-btns .pgc-font-size {
+    float: left;
+    line-height: 30px;
+}
+.pg-page-btns .pgc-font-size a {
+    margin-top: 6px;
+    display: block;
+    float: left;
+    font-size: 14px;
+    padding: 0 8px;
+    line-height: 20px;
+}
+.pg-page-btns .pgc-font-size a.increase {
+    border-right: 1px solid #ccc;
+}
+.pg-page-btns .pgc-title-btn {
+    float: left;
+    width: 30px;
+    height: 30px;
+    background: #3972b1;
+    color: #fff;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 21px;
+    margin-left: 10px;
+    position: relative;
+    behavior: url(/PIE.htc);
+}
+.pg-page-btns .pgc-title-btn span {
+    line-height: 30px;
+}
+.pg-page-btns .pgc-title-btn a {
+    color: #fff;
+    text-decoration: none;
+}
+.pg-page-btns .pgc-title-btn a:hover {
+    color: #fff;
+    text-decoration: none;
+}
+.pg-page-btns .pgc-share .atc_s, .pg-page-btns .addthis_pill_style,
+.pg-page-btns .addthis_pill_style.ie7 {
+    width: 30px !important;
+    height: 30px !important;
+}
+/* Hiding default add this button */
+.addthis_counter .atc_s, .addthis_counter .addthis_button_expanded,
+.pg-page-btns .addthis_pill_style.ie7 .atc_s,
+.pg-page-btns .addthis_pill_style.ie7 .atc_s span {
+    background: none !important;
+}
+.addthis_toolbox {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+div.atm {
+    margin-top: 9px !important;
+}
+
+.node-landing-page .details h2 {
+    font-style: normal;
+    line-height: normal;
+    padding: 0;
+}
+
+#block-system-main-menu h2 {
+  padding: 0;
+  margin: 0;
+}
+
+#block-system-main-menu h2 a:hover {
+  text-decoration: none;
+}
+
+div.view {
+    font-size:14px;
+}
+
+/* Story pages */
+.pgc-stories {
+    width: 100%;
+    margin-top: -30px;
+    clear: both;
+}
+.pgc-stories div {
+    display: inline-block;
+    width: 100%;
+    margin: 30px 0 0;
+    float: left;
+}
+.pgc-stories div img {
+    width: 100%;
+}
+.pgc-stories div p {
+    padding: 1%;
+}
+/*PGCS-445*/
+#block-pgc-misc-blocks-mobilenav .control.close-btn {
+    border: none;
+}
+@media screen and (min-width: 750px) {
+    .pgc-stories div {
+        width: 48%;
+        margin: 30px 1% 0;
+    }
+}
+
+/* PGCS-712 */
+
+@media only screen and (max-width: 767px){
+	.pg-featured-link {
+	    width: 100% !important;
+	    float: none !important;
+	}
+	
+	.pg-content-inline-blocks {
+	    float: none;
+	    margin-left: 0;
+	}
+}

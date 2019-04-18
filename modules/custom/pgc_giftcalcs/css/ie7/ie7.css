@@ -1,0 +1,34 @@
+.gc-icon-gift {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe600;');
+}
+.gc-icon-talk {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe601;');
+}
+.gc-icon-mail {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe602;');
+}
+.gc-icon-print {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe603;');
+}
+.gc-icon-email {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe604;');
+}
+.gc-icon-staff {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe605;');
+}
+.gc-icon-call {
+    *zoom: expression(this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xe606;');
+}
+
+.gcd-image {
+    height: 100%;
+}
+
+#pgc-gc #gc-customize-submit, #pgc-gc #gc-customize-cancel {
+    float: none !important;
+    display: inline !important;
+}
+#pgc-gc #gc-customize-cancel {
+    padding-left: 10px;
+    margin-left: 0 !important;
+}

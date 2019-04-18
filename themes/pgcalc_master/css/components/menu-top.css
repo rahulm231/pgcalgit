@@ -1,0 +1,123 @@
+#block-system-main-menu {
+  -webkit-box-shadow: 0px 0px 4px #666;
+  -moz-box-shadow: 0px 0px 4px #666;
+  box-shadow: 0px 0px 4px #666;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  behavior: url(/PIE.htc);
+  background: #3972b1;
+  width: 100%;
+  padding: 0 5px 0 5px;
+}
+#block-system-main-menu h2 {
+  display: none;
+}
+
+#main-menu {
+  padding: 0;
+  margin: 0
+}
+
+#main-menu li {
+  padding: 0;
+  margin: 0;
+  height: auto;
+  list-style: none;
+  float: left;
+}
+
+#main-menu li a {
+  font-size: 16px;
+  color: #fff;
+  display: block;
+  padding: 10px 15px;
+  border: 0;
+  border-right: 1px solid #6b95c5;
+  line-height: 30px;
+  text-decoration: none;
+  background: #3972b1;
+  text-transform: none;
+  font-weight: 600;
+}
+
+#main-menu li a:hover {
+  background: #6b95c5;
+}
+
+#main-menu li.active-trail a {
+
+}
+
+#main-menu li a.active {
+  color: #cde4ff;
+}
+
+#main-menu ul li.active-trail a {
+}
+
+#main-menu ul li a.active {
+}
+
+#main-menu ul li.active-trail a {
+}
+
+#main-menu ul li a.active {
+}
+
+#main-menu li:hover ul {
+  display: block;
+}
+
+#main-menu ul {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+}
+
+#main-menu ul li:hover ul {
+  display: block !important;
+}
+
+#main-menu ul ul {
+  display: none !important;
+  position: absolute;
+  z-index: 1000;
+  left: 250px;
+  top: 0;
+}
+
+
+#main-menu ul li {
+  float: none;
+  width: 250px;
+  position: relative;
+  background: #3972b1;
+}
+
+#main-menu li.expanded ul li a {
+}
+
+#main-menu li.expanded ul ul li a {
+}
+
+#main-menu ul ul li {
+  float: none;
+  background: #3972b1;
+}
+
+#main-menu li.last a {
+  border-right: 0;
+}
+
+#main-menu li a:hover {
+  text-decoration: none;
+}
+
+#main-menu li.expanded ul li a {
+  border-right: 0;
+}
+
+#main-menu li.expanded ul li a {
+  border-right: 0;
+}

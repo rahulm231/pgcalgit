@@ -1,0 +1,9 @@
+<div class="gc-question select">
+    <label for="{{id}}" class="gc-form-label">{{label}} <span class="gc-required">{{required}}</span></label>
+    <select id="{{id}}" class="gc-form-select custom-select">
+        {{#options}}
+            <option value="{{value}}" {{selected}}>{{text}}</option>
+        {{/options}}
+    </select>
+    <div class="gc-error">{{error}}</div>
+</div>

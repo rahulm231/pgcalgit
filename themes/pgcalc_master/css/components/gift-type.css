@@ -1,0 +1,40 @@
+.pg-gift-details .accordion-switch {
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+}
+
+.pg-gift-details .accordion-switch:hover {
+}
+
+.pg-gift-details .accordion-switch a {
+    background: #edf4fd;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    padding: 0 15px;
+    border: 1px solid #3774ab;
+    color: #3774ab;
+    display:block;
+    font-size: .9em;
+    font-weight: normal;
+    margin: 10px 0;
+    line-height: 40px;
+    behavior: url(/PIE.htc);
+}
+
+.pg-gift-details .accordion-switch a:hover {
+    background: #3774ab;
+    text-decoration: none;
+    color: #fff;
+}
+
+.pg-gift-details .accordion-switch:hover a {
+}
+
+.pg-gift-details .accordion-switch span {
+    float: right;
+    font-size: 1.5em;
+    font-weight: 200;
+    line-height: 40px;
+}
+

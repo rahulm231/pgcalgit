@@ -1,0 +1,45 @@
+<div class="gc-results">
+    <div class="gc-gt-title">{{gifttype}}</div>
+    <div class="gc-btns">
+        <a class="gc-print gc-btn gc-icon gc-icon-print" href="javascript:void(0);" title="Print button" alt="Print button"></a>
+        <a class="gc-email gc-btn gc-icon gc-icon-email"  href="#" title="Email button" target="_blank" alt="Email button"></a>
+    </div>
+    <div class="gc-diagram">
+        {{#diagram}}
+        <img class="gcd-image" src="{{{image}}}" {{#altTag}} alt="A diagram that explains how a {{altTag}} works" {{/altTag}}/>
+        <div class="gcd-labels">
+            <div class="gcd-label gcd-label-one">{{{label_1}}}</div>
+            <div class="gcd-label gcd-label-two ">{{{label_2}}}</div>
+            <div class="gcd-label gcd-label-three">{{{label_3}}}</div>
+            <div class="gcd-label gcd-label-four">{{{label_4}}}</div>
+            <div class="gcd-label gcd-label-five">{{{label_5}}}</div>
+        </div>
+        {{/diagram}}
+    </div>
+    <a class="gc-btn-customize gc-btn gc-noprint" href="javascript:void(0);" alt="{{personalizeLabel}} button"><span class="gc-label">{{personalizeLabel}}</span></a>
+    <div class="pgc-clearfix"></div>
+    {{#description}}
+        <div class="gc-gift-details">{{{.}}}</div>
+    {{/description}}
+    {{#notes}}
+    <div class="gc-notes">{{{.}}}</div>
+    {{/notes}}
+    {{#discountRate}}
+    <div class="gc-discount-rate">{{{.}}}</div>
+    {{/discountRate}}
+    {{#disclaimer}}
+    <div class="gc-disclaimer">{{{.}}}</div>
+    {{/disclaimer}}
+    {{#buttons.length}}
+    <h2 class="gc-contact-headline gc-noprint">{{contactHeadline}}</h2>
+    {{/buttons.length}}
+    <div class="gc-contact-btns gc-noprint">
+        {{#buttons}}
+            <a class="gc-btn gc-contact-btn-1" {{#url}}href="{{url}}" target="_parent"{{/url}} {{#label}} alt="Contact Button {{index}} – {{label}}" {{/label}} {{^label}} alt="Contact us button" {{/label}}>
+            	<span class="gc-icon-{{icon}}"></span> 
+            	{{#label}}<span class="gc-label">{{label}}</span>{{/label}}
+            </a>
+        {{/buttons}}
+        <div class="pgc-clearfix"></div>
+    </div>
+</div>

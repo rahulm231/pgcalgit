@@ -1,0 +1,46 @@
+@font-face {
+    font-family: 'giftcalcs';
+    src:url('https://www.giftcalcs.com/sites/all/modules/custom/pgc_giftcalcs/css/fonts/giftcalcs.eot?-yfclpr');
+    src:url('https://www.giftcalcs.com/sites/all/modules/custom/pgc_giftcalcs/css/giftcalcs.eot?#iefix-yfclpr') format('embedded-opentype'),
+    url('https://www.giftcalcs.com/sites/all/modules/custom/pgc_giftcalcs/css/fonts/giftcalcs.woff?-yfclpr') format('woff'),
+    url('https://www.giftcalcs.com/sites/all/modules/custom/pgc_giftcalcs/css/fonts/giftcalcs.ttf?-yfclpr') format('truetype'),
+    url('https://www.giftcalcs.com/sites/all/modules/custom/pgc_giftcalcs/css/fonts/giftcalcs.svg?-yfclpr#giftcalcs') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+[class^="gc-icon-"], [class*=" gc-icon-"] {
+    font-family: 'giftcalcs';
+    speak: none;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+
+    /* Better Font Rendering =========== */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.gc-icon-gift:before {
+    content: "\e600";
+}
+.gc-icon-talk:before {
+    content: "\e601";
+}
+.gc-icon-mail:before {
+    content: "\e602";
+}
+.gc-icon-print:before {
+    content: "\e603";
+}
+.gc-icon-email:before {
+    content: "\e604";
+}
+.gc-icon-staff:before {
+    content: "\e605";
+}
+.gc-icon-call:before {
+    content: "\e606";
+}

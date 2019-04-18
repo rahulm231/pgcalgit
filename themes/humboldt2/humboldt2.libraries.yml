@@ -1,0 +1,13 @@
+global-components:
+  Version: 1.x
+  css:
+    theme:
+      overrides.css: { media: "all" }
+  js:  
+    custom.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal.ajax
+    - core/drupal
+    - core/drupalSettings
+    - core/jquery.once

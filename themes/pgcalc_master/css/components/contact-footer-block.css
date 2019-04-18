@@ -1,0 +1,40 @@
+#block-pgc-contact-block-pgc-contact-footer-block {
+    background: #3972b1;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    padding: 10px 20px;
+    -webkit-box-shadow: 0px 0px 4px #666;
+    -moz-box-shadow: 0px 0px 4px #666;
+    box-shadow: 0px 0px 4px #666;
+    behavior: url(/PIE.htc);
+}
+
+#block-pgc-contact-block-pgc-contact-footer-block .title {
+    color: #fff;
+    font-size: 1.5em;
+}
+
+#pgc-contact-footer-block {
+
+}
+
+#pgc-contact-footer-block li {
+
+}
+
+#pgc-contact-footer-block li:hover {
+
+}
+
+#pgc-contact-footer-block li a {
+    color: #fff;
+}
+
+#pgc-contact-footer-block li a:hover {
+
+}
+
+#pgc-contact-footer-block li span {
+
+}

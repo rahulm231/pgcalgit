@@ -1,0 +1,4 @@
+name = PG Calc App Server
+description = Serves the Gift Calcs, Gift Guide, and Gift Story apps
+core = 7.x
+configure = admin/config/pgc-appserver
