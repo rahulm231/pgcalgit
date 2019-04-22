@@ -1,0 +1,20 @@
+<?php
+
+use Drupal\pgc_print_setting\Form\AdminConfigForm;
+use Drupal\file\Entity\File;
+
+/**
+ * Implements hook_theme().
+ */
+function pgc_print_setting_theme($existing, $type, $theme, $path) {
+  return array(
+    'pgc_print_page' => array(
+      'render element' => 'elements',
+           'variables' => array('title' => NULL, 'description' => NULL,'body'=>NULL, 'border' => NULL, 'logo' => '','abcd' => 'check value'),
+           'template' => 'pgc-print-page',
+           'base hook' => 'page',
+           'path' => drupal_get_path('module', 'pgc_print_setting') . '/templates',
+           'type' => 'module'
+       ),
+  );
+}

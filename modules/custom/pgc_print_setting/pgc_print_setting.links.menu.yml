@@ -1,0 +1,6 @@
+pgc_print_setting.admin_settings_form:
+  title: 'PG Calc print settings'  
+  route_name: pgc_print_setting.admin_settings_form  
+  description: 'Custom settings for print preview'  
+  parent: system.admin_config_system
+  weight: 0

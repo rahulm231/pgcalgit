@@ -1,0 +1,7 @@
+pgc_print_setting_style:
+  version: 1.x
+  css:
+    layout:
+      css/pgc_print_setting.css: {}
+    theme:
+      css/pgc_print_setting.css: {}

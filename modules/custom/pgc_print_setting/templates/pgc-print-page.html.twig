@@ -1,0 +1,12 @@
+{{ attach_library('pgc_print_setting/pgc_print_setting_style') }}
+<div class="pgc-print-preview" style="border:{{ border }}">
+    {% if logo|length != 0 %}
+    <div class="header">
+  	  <div class="pgc-print-logo" style="text-align: center"><img src="{{ logo }}"></div>
+    </div>
+  {% endif %}
+    {% if title is not empty %}
+    <h1 class="pgc-print-title">{{ title }}</h1>
+    {% endif %}
+  <div class="pgc-print-body">{{ body }}</div>
+</div>

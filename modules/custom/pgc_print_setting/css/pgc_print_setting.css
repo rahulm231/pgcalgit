@@ -1,0 +1,16 @@
+body{
+	background:none;
+}
+
+.pgc-print-preview{
+	margin:20px;
+	padding:20px;
+}
+
+.pgc-print-preview .pgc-print-body .node-gift-type .accordion-items{
+	display:block !important;
+}
+
+.pgc-print-preview .pgc-print-body .node-landing-page .child-pages .child-page .details{
+	padding-left:0px !important;
+}

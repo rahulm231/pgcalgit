@@ -1,0 +1,12 @@
+name: PGCalc Print Setting
+type: module
+description: 'Print preview for different pages and setting for these pages.'
+package: Custom
+core: 8.x
+hidden: false
+
+dependencies:
+  - jquery_colorpicker:jquery_colorpicker
+
+
+configure: pgc_print_setting.settings

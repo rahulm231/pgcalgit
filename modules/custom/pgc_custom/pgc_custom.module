@@ -1,5 +1,5 @@
 <?php /* Author : Neena Thakur */
-
+  
 function pgc_custom_preprocess_html(&$variables) {
 	
 	$current_path = current_path();
@@ -260,7 +260,7 @@ function _pgc_custom_enabled_gift_validate(&$form, &$form_state){
   }
   // #GEP-68 - Starts here
   if($form_state['input']['profile_gifttypes']['field_all_default_diagram']['und']=='bqt' && $form_state['input']['profile_gifttypes']['field_bqt_in_gifttype_menu']['und']!=1){
-	 form_set_error($form['profile_gifttypes']['field_bqt_in_gifttype_menu']['und']['#field_name'], 'To choose Bequest as “Default Diagram” in All Gifts gift type, mark "Include Bequest in Gift Type menu for All Gifts diagram" checkbox in Bequest gift type.');	
+	 form_set_error($form['profile_gifttypes']['field_bqt_in_gifttype_menu']['und']['#field_name'], 'To choose Bequest as “Default Diagram�? in All Gifts gift type, mark "Include Bequest in Gift Type menu for All Gifts diagram" checkbox in Bequest gift type.');	
   } 
   // #GEP-68 - Ends here
   //echo "<pre>"; print_r($form_state['input']); 
@@ -298,4 +298,9 @@ function pgc_custom_views_query_alter(&$view, &$query) {
 	  }      
 	}	
   }
+}
+
+
+function pgc_test_fun(){
+    echo "111111111";
 }
